@@ -1,0 +1,47 @@
+import React from 'react';
+import { Table } from '../types';
+
+interface TableListProps {
+  tables: Table[];
+  selectedTable: string | null;
+  onTableSelect: (tableName: string) => void;
+  pendingChangesByTable: Record<string, number>;
+}
+
+export const TableList: React.FC<TableListProps> = ({ tables, selectedTable, onTableSelect, pendingChangesByTable }) => {
+  return (
+    <div className="w-64 bg-gray-100 border-r border-gray-300 h-full overflow-y-auto">
+      <div className="p-4 border-b border-gray-300 bg-gray-50">
+        <h2 className="text-lg font-semibold text-gray-800">Tables</h2>
+      </div>
+      <div className="p-2">
+        {tables.map((table) => (
+          <button
+            key={table.name}
+            onClick={() => onTableSelect(table.name)}
+            className={`w-full text-left p-3 rounded-md mb-1 transition-colors ${
+              selectedTable === table.name
+                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                : 'hover:bg-gray-200 text-gray-700'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <i className="ti ti-table mr-2"></i>
+                <span className="font-mono text-sm">{table.name}</span>
+              </div>
+              {(pendingChangesByTable[table.name] || 0) > 0 && (
+                <span className="bg-orange-500 text-white text-xs rounded-full px-2 py-1 ml-2">
+                  {pendingChangesByTable[table.name]}
+                </span>
+              )}
+            </div>
+          </button>
+        ))}
+        {tables.length === 0 && (
+          <p className="text-gray-500 text-sm p-3">No tables found</p>
+        )}
+      </div>
+    </div>
+  );
+};
