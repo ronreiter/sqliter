@@ -205,7 +205,7 @@ func (s *SQLiteDB) GetTableSchema(tableName string) ([]models.Column, error) {
 	return columns, nil
 }
 
-func (s *SQLiteDB) GetTableData(tableName string, limit, offset int) (*models.TableData, error) {
+func (s *SQLiteDB) GetTableData(tableName string, limit, offset int, sortColumn, sortDirection string) (*models.TableData, error) {
 	columns, err := s.GetTableSchema(tableName)
 	if err != nil {
 		return nil, err
@@ -218,7 +218,23 @@ func (s *SQLiteDB) GetTableData(tableName string, limit, offset int) (*models.Ta
 		return nil, fmt.Errorf("failed to get total row count: %w", err)
 	}
 
-	query := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", tableName, limit, offset)
+	// Build the query with optional sorting
+	query := fmt.Sprintf("SELECT * FROM %s", tableName)
+	if sortColumn != "" && sortDirection != "" {
+		// Validate sortColumn exists to prevent SQL injection
+		columnExists := false
+		for _, col := range columns {
+			if col.Name == sortColumn {
+				columnExists = true
+				break
+			}
+		}
+		if !columnExists {
+			return nil, fmt.Errorf("invalid sort column: %s", sortColumn)
+		}
+		query += fmt.Sprintf(" ORDER BY %s %s", sortColumn, strings.ToUpper(sortDirection))
+	}
+	query += fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query table data: %w", err)

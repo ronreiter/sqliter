@@ -72,3 +72,15 @@ tasks:
     desc: Run tests
     cmds:
       - go test ./...
+
+  lint:
+    desc: Run linter for frontend
+    dir: web
+    cmds:
+      - npm run lint
+
+  lint-fix:
+    desc: Run linter with auto-fix for frontend
+    dir: web
+    cmds:
+      - npm run lint:fix

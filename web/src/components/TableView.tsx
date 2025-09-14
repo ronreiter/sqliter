@@ -249,6 +249,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<ErrorDialog>({
     isOpen: false,
@@ -302,7 +306,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     try {
       setLoading(true);
       const offset = (currentPage - 1) * pageSize;
-      const data = await api.getTableData(tableName, pageSize, offset);
+      const data = await api.getTableData(tableName, pageSize, offset, sortColumn || undefined, sortColumn ? sortDirection : undefined);
       setTableData(data);
       setError(null);
       // Clear selections when loading new data
@@ -320,7 +324,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
 
   useEffect(() => {
     loadTableData();
-  }, [tableName, currentPage, pageSize]);
+  }, [tableName, currentPage, pageSize, sortColumn, sortDirection]);
 
   const handleInsert = async (data: Record<string, any>) => {
     try {
@@ -645,6 +649,35 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     return Object.keys(pendingChanges).filter(key => key.startsWith(`${rowIndex}-`));
   };
 
+  // Sorting handler
+  const handleSort = (columnName: string) => {
+    if (sortColumn === columnName) {
+      // Cycle through: asc -> desc -> none
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortColumn(columnName);
+      setSortDirection('asc');
+    }
+  };
+
+  // Helper function to get sort icon
+  const getSortIcon = (columnName: string) => {
+    if (sortColumn !== columnName) {
+      return <i className="ti ti-selector text-gray-400 ml-1"></i>;
+    }
+
+    if (sortDirection === 'asc') {
+      return <i className="ti ti-chevron-up text-blue-600 ml-1"></i>;
+    } else {
+      return <i className="ti ti-chevron-down text-blue-600 ml-1"></i>;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -785,14 +818,26 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   key={column.name}
                   className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700"
                 >
-                  <div className="flex flex-col">
-                    <span>{column.name}</span>
-                    <span className="text-xs text-gray-500 font-normal">
-                      {column.type}
-                      {column.primary_key && ' (PK)'}
-                      {column.unique && ' (UNIQUE)'}
-                      {column.not_null && ' (NOT NULL)'}
-                    </span>
+                  <div
+                    className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -mx-2 -my-1 px-2 py-1 rounded"
+                    onClick={() => handleSort(column.name)}
+                    title={`Sort by ${column.name}`}
+                  >
+                    <div className="flex flex-col">
+                      <div className="flex items-center">
+                        <span>{column.name}</span>
+                        {column.primary_key && <span className="text-yellow-600 ml-1">🔑</span>}
+                        {column.unique && !column.primary_key && <span className="text-purple-600 ml-1">🔒</span>}
+                        {column.not_null && <span className="text-red-600 ml-1">*</span>}
+                      </div>
+                      <span className="text-xs text-gray-500 font-normal">
+                        {column.type}
+                        {column.primary_key && ' (PK)'}
+                        {column.unique && ' (UNIQUE)'}
+                        {column.not_null && ' (NOT NULL)'}
+                      </span>
+                    </div>
+                    {getSortIcon(column.name)}
                   </div>
                 </th>
               ))}

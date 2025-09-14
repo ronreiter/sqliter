@@ -63,6 +63,8 @@ func (h *Handler) GetTableData(c *gin.Context) {
 
 	limitStr := c.DefaultQuery("limit", "100")
 	offsetStr := c.DefaultQuery("offset", "0")
+	sortColumn := c.Query("sort_column")
+	sortDirection := c.Query("sort_direction")
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
@@ -76,7 +78,13 @@ func (h *Handler) GetTableData(c *gin.Context) {
 		return
 	}
 
-	data, err := h.db.GetTableData(tableName, limit, offset)
+	// Validate sort direction if provided
+	if sortDirection != "" && sortDirection != "asc" && sortDirection != "desc" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort_direction parameter, must be 'asc' or 'desc'"})
+		return
+	}
+
+	data, err := h.db.GetTableData(tableName, limit, offset, sortColumn, sortDirection)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
