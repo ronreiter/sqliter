@@ -49,7 +49,7 @@ const getOperatorOptions = (filterType: 'text' | 'number' | 'boolean' | 'date') 
   }
 };
 
-export const ColumnFilter: React.FC<ColumnFilterProps> = ({ column, filter, onChange }) => {
+export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, filter, onChange }) => {
   const filterType = getFilterType(column.type);
   const operatorOptions = getOperatorOptions(filterType);
   const [localValue, setLocalValue] = useState<string>('');

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TableData, Column, FilterState, ColumnFilter } from '../types';
 import { api } from '../api';
 import { EditModal } from './EditModal';
 import { ErrorDialog } from './ErrorDialog';
 import { ConfirmDialog } from './ConfirmDialog';
-import { ColumnFilter as ColumnFilterComponent } from './ColumnFilter';
+import { ColumnFilterComponent } from './ColumnFilter';
 
 interface TableViewProps {
   tableName: string;
@@ -80,10 +81,17 @@ const getBooleanValue = (value: any): boolean => {
   return str === 'true' || str === '1';
 };
 
+const isUrl = (str: string): boolean => {
+  if (!str || typeof str !== 'string') return false;
+  const urlRegex = /^https?:\/\/(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w._~!$&'()*+,;=:@-]|%[\dA-F]{2})*)*(?:\?(?:[;&\w._~!$&'()*+,;=:@-]|%[\dA-F]{2})*)?(?:#(?:[\w._~!$&'()*+,;=:@-]|%[\dA-F]{2})*)?$/i;
+  return urlRegex.test(str.trim());
+};
+
 
 
 
 export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPendingChangesUpdate }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tableData, setTableData] = useState<TableData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -253,21 +261,37 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     loadTableData();
   }, [tableName, currentPage, pageSize, sortColumn, sortDirection, filters]);
 
-  // URL state management for filters and sorting
+  // URL state management for filters, sorting, and pagination
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-
     // Load sorting from URL
-    const urlSortColumn = params.get('sort');
-    const urlSortDirection = params.get('direction') as 'asc' | 'desc';
+    const urlSortColumn = searchParams.get('sort');
+    const urlSortDirection = searchParams.get('direction') as 'asc' | 'desc';
     if (urlSortColumn && urlSortDirection) {
       setSortColumn(urlSortColumn);
       setSortDirection(urlSortDirection);
     }
 
+    // Load page size from URL
+    const urlPageSize = searchParams.get('pageSize');
+    if (urlPageSize && !isNaN(Number(urlPageSize))) {
+      const pageSizeNum = Number(urlPageSize);
+      if ([10, 25, 50, 100, 200, 1000].includes(pageSizeNum)) {
+        setPageSize(pageSizeNum);
+      }
+    }
+
+    // Load current page from URL
+    const urlPage = searchParams.get('page');
+    if (urlPage && !isNaN(Number(urlPage))) {
+      const pageNum = Number(urlPage);
+      if (pageNum > 0) {
+        setCurrentPage(pageNum);
+      }
+    }
+
     // Load filters from URL
     const urlFilters: FilterState = {};
-    params.forEach((value, key) => {
+    for (const [key, value] of searchParams.entries()) {
       if (key.startsWith('filter_')) {
         try {
           const filterData = JSON.parse(decodeURIComponent(value));
@@ -288,14 +312,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
           console.warn('Failed to parse filter from URL:', key, value, e);
         }
       }
-    });
+    }
     if (Object.keys(urlFilters).length > 0) {
       setFilters(urlFilters);
       setShowFilters(true);
     }
-  }, []);
+  }, [searchParams]);
 
-  // Update URL when filters or sorting change
+  // Update URL when filters, sorting, or pagination change
   useEffect(() => {
     const params = new URLSearchParams();
 
@@ -303,6 +327,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     if (sortColumn && sortDirection) {
       params.set('sort', sortColumn);
       params.set('direction', sortDirection);
+    }
+
+    // Add pagination to URL
+    if (pageSize !== 10) { // Only add if not default value
+      params.set('pageSize', pageSize.toString());
+    }
+    if (currentPage !== 1) { // Only add if not first page
+      params.set('page', currentPage.toString());
     }
 
     // Add filters to URL
@@ -315,9 +347,8 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       params.set(`filter_${columnName}`, encodeURIComponent(JSON.stringify(filterData)));
     });
 
-    const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
-    window.history.replaceState({}, '', newUrl);
-  }, [sortColumn, sortDirection, filters]);
+    setSearchParams(params, { replace: true });
+  }, [sortColumn, sortDirection, pageSize, currentPage, filters, setSearchParams]);
 
   const handleInsert = async (data: Record<string, any>) => {
     try {
@@ -988,19 +1019,41 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                   className="cursor-pointer"
                                 />
                               ) : (
-                                String(displayValue)
+                                isUrl(String(displayValue)) ? (
+                                  <a
+                                    href={String(displayValue)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-500 hover:text-blue-700 underline"
+                                  >
+                                    {String(displayValue)}
+                                  </a>
+                                ) : (
+                                  String(displayValue)
+                                )
                               )}
                             </div>
                           )}
                         </div>
-                        {!isEditing && !column.not_null && !column.primary_key && (
-                          <button
-                            onClick={() => handleSetNull(index, column.name)}
-                            className="px-1 py-0.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Set to NULL"
-                          >
-                            <i className="ti ti-x text-xs"></i>
-                          </button>
+                        {!isEditing && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleCellDoubleClick(index, column.name, row[column.name])}
+                              className="px-1 py-0.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Edit cell"
+                            >
+                              <i className="ti ti-edit text-xs"></i>
+                            </button>
+                            {!column.not_null && !column.primary_key && (
+                              <button
+                                onClick={() => handleSetNull(index, column.name)}
+                                className="px-1 py-0.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Set to NULL"
+                              >
+                                <i className="ti ti-x text-xs"></i>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
