@@ -19,11 +19,14 @@ export const api = {
     return response.data.columns;
   },
 
-  async getTableData(tableName: string, limit = 100, offset = 0, sortColumn?: string, sortDirection?: 'asc' | 'desc'): Promise<TableData> {
+  async getTableData(tableName: string, limit = 100, offset = 0, sortColumn?: string, sortDirection?: 'asc' | 'desc', whereClause?: string): Promise<TableData> {
     const params: any = { limit, offset };
     if (sortColumn && sortDirection) {
       params.sort_column = sortColumn;
       params.sort_direction = sortDirection;
+    }
+    if (whereClause) {
+      params.where_clause = whereClause;
     }
     const response = await axios.get(`${API_BASE}/tables/${tableName}/data`, {
       params

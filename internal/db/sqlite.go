@@ -205,21 +205,29 @@ func (s *SQLiteDB) GetTableSchema(tableName string) ([]models.Column, error) {
 	return columns, nil
 }
 
-func (s *SQLiteDB) GetTableData(tableName string, limit, offset int, sortColumn, sortDirection string) (*models.TableData, error) {
+func (s *SQLiteDB) GetTableData(tableName string, limit, offset int, sortColumn, sortDirection, whereClause string) (*models.TableData, error) {
 	columns, err := s.GetTableSchema(tableName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get total row count
+	// Build the base query with optional WHERE clause
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", tableName)
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)
+
+	if whereClause != "" {
+		baseQuery += fmt.Sprintf(" WHERE %s", whereClause)
+		countQuery += fmt.Sprintf(" WHERE %s", whereClause)
+	}
+
+	// Get total row count with filtering
 	var total int
 	if err := s.db.QueryRow(countQuery).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to get total row count: %w", err)
 	}
 
 	// Build the query with optional sorting
-	query := fmt.Sprintf("SELECT * FROM %s", tableName)
+	query := baseQuery
 	if sortColumn != "" && sortDirection != "" {
 		// Validate sortColumn exists to prevent SQL injection
 		columnExists := false

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { TableData, Column } from '../types';
+import { TableData, Column, FilterState, ColumnFilter } from '../types';
 import { api } from '../api';
 import { EditModal } from './EditModal';
 import { ErrorDialog } from './ErrorDialog';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ColumnFilter as ColumnFilterComponent } from './ColumnFilter';
 
 interface TableViewProps {
   tableName: string;
@@ -106,6 +107,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({});
+
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<ErrorDialog>({
     isOpen: false,
@@ -155,11 +160,75 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     };
   }, [tableName, onPendingChangesUpdate]);
 
+  const buildFilterQuery = (): string[] => {
+    const conditions: string[] = [];
+
+    Object.values(filters).forEach(filter => {
+      if (!filter || !filter.columnName) {
+        return; // Skip invalid filters
+      }
+
+      const columnName = filter.columnName;
+
+      switch (filter.operator) {
+        case 'contains':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            const safeValue = String(filter.value).replace(/'/g, "''");
+            conditions.push(`${columnName} LIKE '%${safeValue}%'`);
+          }
+          break;
+        case 'equals':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            if (typeof filter.value === 'string') {
+              conditions.push(`${columnName} = '${String(filter.value).replace(/'/g, "''")}'`);
+            } else {
+              conditions.push(`${columnName} = ${filter.value}`);
+            }
+          }
+          break;
+        case 'greater':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            conditions.push(`${columnName} > ${filter.value}`);
+          }
+          break;
+        case 'less':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            conditions.push(`${columnName} < ${filter.value}`);
+          }
+          break;
+        case 'null':
+          conditions.push(`${columnName} IS NULL`);
+          break;
+        case 'not_null':
+          conditions.push(`${columnName} IS NOT NULL`);
+          break;
+        case 'true':
+          conditions.push(`${columnName} = 1 OR ${columnName} = 'true' OR ${columnName} = 'True'`);
+          break;
+        case 'false':
+          conditions.push(`${columnName} = 0 OR ${columnName} = 'false' OR ${columnName} = 'False' OR ${columnName} IS NULL`);
+          break;
+      }
+    });
+
+    return conditions;
+  };
+
   const loadTableData = async () => {
     try {
       setLoading(true);
       const offset = (currentPage - 1) * pageSize;
-      const data = await api.getTableData(tableName, pageSize, offset, sortColumn || undefined, sortColumn ? sortDirection : undefined);
+      const whereConditions = buildFilterQuery();
+      const whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : undefined;
+
+      const data = await api.getTableData(
+        tableName,
+        pageSize,
+        offset,
+        sortColumn || undefined,
+        sortColumn ? sortDirection : undefined,
+        whereClause
+      );
       setTableData(data);
       setError(null);
       // Clear selections when loading new data
@@ -177,7 +246,73 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
 
   useEffect(() => {
     loadTableData();
-  }, [tableName, currentPage, pageSize, sortColumn, sortDirection]);
+  }, [tableName, currentPage, pageSize, sortColumn, sortDirection, filters]);
+
+  // URL state management for filters and sorting
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // Load sorting from URL
+    const urlSortColumn = params.get('sort');
+    const urlSortDirection = params.get('direction') as 'asc' | 'desc';
+    if (urlSortColumn && urlSortDirection) {
+      setSortColumn(urlSortColumn);
+      setSortDirection(urlSortDirection);
+    }
+
+    // Load filters from URL
+    const urlFilters: FilterState = {};
+    params.forEach((value, key) => {
+      if (key.startsWith('filter_')) {
+        try {
+          const filterData = JSON.parse(decodeURIComponent(value));
+          const columnName = key.replace('filter_', '');
+
+          // Validate filter data structure
+          if (filterData &&
+              typeof filterData.filterType === 'string' &&
+              typeof filterData.operator === 'string') {
+            urlFilters[columnName] = {
+              ...filterData,
+              columnName
+            };
+          } else {
+            console.warn('Invalid filter data structure:', filterData);
+          }
+        } catch (e) {
+          console.warn('Failed to parse filter from URL:', key, value, e);
+        }
+      }
+    });
+    if (Object.keys(urlFilters).length > 0) {
+      setFilters(urlFilters);
+      setShowFilters(true);
+    }
+  }, []);
+
+  // Update URL when filters or sorting change
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Add sorting to URL
+    if (sortColumn && sortDirection) {
+      params.set('sort', sortColumn);
+      params.set('direction', sortDirection);
+    }
+
+    // Add filters to URL
+    Object.entries(filters).forEach(([columnName, filter]) => {
+      const filterData = {
+        filterType: filter.filterType,
+        operator: filter.operator,
+        value: filter.value
+      };
+      params.set(`filter_${columnName}`, encodeURIComponent(JSON.stringify(filterData)));
+    });
+
+    const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [sortColumn, sortDirection, filters]);
 
   const handleInsert = async (data: Record<string, any>) => {
     try {
@@ -502,6 +637,31 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     return Object.keys(pendingChanges).filter(key => key.startsWith(`${rowIndex}-`));
   };
 
+  // Filter handlers
+  const handleFilterChange = (columnName: string, filter: ColumnFilter | null) => {
+    setFilters(prev => {
+      if (filter === null) {
+        const { [columnName]: removed, ...rest } = prev;
+        return rest;
+      } else {
+        return {
+          ...prev,
+          [columnName]: filter
+        };
+      }
+    });
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({});
+    setCurrentPage(1);
+  };
+
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
   // Sorting handler
   const handleSort = (columnName: string) => {
     if (sortColumn === columnName) {
@@ -650,6 +810,31 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             <option value={200}>200 per page</option>
             <option value={1000}>1,000 per page</option>
           </select>
+          <button
+            onClick={toggleFilters}
+            className={`ml-3 px-3 py-1 border border-gray-300 rounded text-xs flex items-center gap-1 ${
+              showFilters ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+            title="Toggle filters"
+          >
+            <i className="ti ti-filter"></i>
+            Filters
+            {Object.keys(filters).length > 0 && (
+              <span className="bg-blue-500 text-white rounded-full text-xs px-1 min-w-[16px] h-4 flex items-center justify-center">
+                {Object.keys(filters).length}
+              </span>
+            )}
+          </button>
+          {Object.keys(filters).length > 0 && (
+            <button
+              onClick={handleClearAllFilters}
+              className="ml-2 px-2 py-1 bg-red-100 text-red-700 border border-red-300 rounded text-xs hover:bg-red-200"
+              title="Clear all filters"
+            >
+              <i className="ti ti-x"></i>
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -673,26 +858,36 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   key={column.name}
                   className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700"
                 >
-                  <div
-                    className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -mx-2 -my-1 px-2 py-1 rounded"
-                    onClick={() => handleSort(column.name)}
-                    title={`Sort by ${column.name}`}
-                  >
-                    <div className="flex flex-col">
-                      <div className="flex items-center">
-                        <span>{column.name}</span>
-                        {column.primary_key && <span className="text-yellow-600 ml-1">🔑</span>}
-                        {column.unique && !column.primary_key && <span className="text-purple-600 ml-1">🔒</span>}
-                        {column.not_null && <span className="text-red-600 ml-1">*</span>}
+                  <div>
+                    <div
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -mx-2 -my-1 px-2 py-1 rounded"
+                      onClick={() => handleSort(column.name)}
+                      title={`Sort by ${column.name}`}
+                    >
+                      <div className="flex flex-col">
+                        <div className="flex items-center">
+                          <span>{column.name}</span>
+                          {column.primary_key && <span className="text-yellow-600 ml-1">🔑</span>}
+                          {column.unique && !column.primary_key && <span className="text-purple-600 ml-1">🔒</span>}
+                          {column.not_null && <span className="text-red-600 ml-1">*</span>}
+                          {filters[column.name] && <span className="text-blue-600 ml-1">🔍</span>}
+                        </div>
+                        <span className="text-xs text-gray-500 font-normal">
+                          {column.type}
+                          {column.primary_key && ' (PK)'}
+                          {column.unique && ' (UNIQUE)'}
+                          {column.not_null && ' (NOT NULL)'}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500 font-normal">
-                        {column.type}
-                        {column.primary_key && ' (PK)'}
-                        {column.unique && ' (UNIQUE)'}
-                        {column.not_null && ' (NOT NULL)'}
-                      </span>
+                      {getSortIcon(column.name)}
                     </div>
-                    {getSortIcon(column.name)}
+                    {showFilters && (
+                      <ColumnFilterComponent
+                        column={column}
+                        filter={filters[column.name]}
+                        onChange={(filter) => handleFilterChange(column.name, filter)}
+                      />
+                    )}
                   </div>
                 </th>
               ))}

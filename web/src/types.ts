@@ -39,3 +39,14 @@ export interface DeleteRequest {
 export interface DatabaseInfo {
   filename: string;
 }
+
+export interface ColumnFilter {
+  columnName: string;
+  filterType: 'text' | 'number' | 'boolean' | 'date';
+  operator: 'contains' | 'equals' | 'greater' | 'less' | 'null' | 'not_null' | 'true' | 'false';
+  value: string | number | boolean | null;
+}
+
+export interface FilterState {
+  [columnName: string]: ColumnFilter;
+}

@@ -65,6 +65,7 @@ func (h *Handler) GetTableData(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	sortColumn := c.Query("sort_column")
 	sortDirection := c.Query("sort_direction")
+	whereClause := c.Query("where_clause")
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
@@ -84,7 +85,7 @@ func (h *Handler) GetTableData(c *gin.Context) {
 		return
 	}
 
-	data, err := h.db.GetTableData(tableName, limit, offset, sortColumn, sortDirection)
+	data, err := h.db.GetTableData(tableName, limit, offset, sortColumn, sortDirection, whereClause)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
