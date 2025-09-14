@@ -20,6 +20,7 @@ type Row map[string]interface{}
 type TableData struct {
 	Columns []Column `json:"columns"`
 	Rows    []Row    `json:"rows"`
+	Total   int      `json:"total"`
 }
 
 type InsertRequest struct {
@@ -37,4 +38,15 @@ type DeleteRequest struct {
 
 type DatabaseInfo struct {
 	Filename string `json:"filename"`
+}
+
+type SQLQueryResult struct {
+	Columns      []string        `json:"columns"`
+	Rows         [][]interface{} `json:"rows"`
+	RowCount     int            `json:"rowCount"`
+	RowsAffected int            `json:"rowsAffected,omitempty"`
+}
+
+type ExecuteSQLRequest struct {
+	SQL string `json:"sql"`
 }

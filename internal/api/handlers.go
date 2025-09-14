@@ -5,6 +5,7 @@ import (
 	"sqliter/internal/db"
 	"sqliter/internal/models"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -147,6 +148,27 @@ func (h *Handler) DeleteRow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "row deleted successfully"})
 }
 
+func (h *Handler) ExecuteSQL(c *gin.Context) {
+	var req models.ExecuteSQLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if strings.TrimSpace(req.SQL) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "SQL query cannot be empty"})
+		return
+	}
+
+	result, err := h.db.ExecuteSQL(req.SQL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *Handler) SetupRoutes() *gin.Engine {
 	r := gin.Default()
 
@@ -179,7 +201,28 @@ func (h *Handler) SetupRoutes() *gin.Engine {
 		api.POST("/tables/:table/rows", h.InsertRow)
 		api.PUT("/tables/:table/rows", h.UpdateRow)
 		api.DELETE("/tables/:table/rows", h.DeleteRow)
+		api.POST("/sql/execute", h.ExecuteSQL)
 	}
+
+	// Serve React app for all non-API routes (client-side routing)
+	r.NoRoute(func(c *gin.Context) {
+		// Don't serve index.html for API routes
+		if strings.HasPrefix(c.Request.URL.Path, "/api") {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		// Don't serve index.html for static assets
+		if strings.HasPrefix(c.Request.URL.Path, "/assets") ||
+		   strings.HasPrefix(c.Request.URL.Path, "/static") ||
+		   c.Request.URL.Path == "/vite.svg" {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		// Serve React app for all other routes
+		c.File("./web/dist/index.html")
+	})
 
 	return r
 }

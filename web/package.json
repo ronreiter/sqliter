@@ -9,12 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "ace-builds": "^1.43.3",
+    "axios": "^1.6.0",
     "react": "^18.2.0",
+    "react-ace": "^14.0.1",
     "react-dom": "^18.2.0",
-    "axios": "^1.6.0"
+    "react-router-dom": "^7.9.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.43",
+    "@types/react": "^18.3.24",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",

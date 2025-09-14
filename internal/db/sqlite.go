@@ -211,6 +211,13 @@ func (s *SQLiteDB) GetTableData(tableName string, limit, offset int) (*models.Ta
 		return nil, err
 	}
 
+	// Get total row count
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)
+	var total int
+	if err := s.db.QueryRow(countQuery).Scan(&total); err != nil {
+		return nil, fmt.Errorf("failed to get total row count: %w", err)
+	}
+
 	query := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", tableName, limit, offset)
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -255,6 +262,7 @@ func (s *SQLiteDB) GetTableData(tableName string, limit, offset int) (*models.Ta
 	return &models.TableData{
 		Columns: columns,
 		Rows:    data,
+		Total:   total,
 	}, nil
 }
 
@@ -349,5 +357,86 @@ func (s *SQLiteDB) DeleteRow(tableName string, where map[string]interface{}) err
 func (s *SQLiteDB) GetDatabaseInfo() (*models.DatabaseInfo, error) {
 	return &models.DatabaseInfo{
 		Filename: s.filename,
+	}, nil
+}
+
+func (s *SQLiteDB) ExecuteSQL(sqlQuery string) (*models.SQLQueryResult, error) {
+	// Trim whitespace and check if query is empty
+	sqlQuery = strings.TrimSpace(sqlQuery)
+	if sqlQuery == "" {
+		return nil, fmt.Errorf("empty SQL query")
+	}
+
+	// Check if this is a SELECT query or other type
+	isSelect := strings.HasPrefix(strings.ToUpper(sqlQuery), "SELECT")
+
+	if isSelect {
+		return s.executeSelectQuery(sqlQuery)
+	} else {
+		return s.executeNonSelectQuery(sqlQuery)
+	}
+}
+
+func (s *SQLiteDB) executeSelectQuery(sqlQuery string) (*models.SQLQueryResult, error) {
+	rows, err := s.db.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	// Get column names
+	columnNames, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get column names: %w", err)
+	}
+
+	var resultRows [][]interface{}
+	for rows.Next() {
+		values := make([]interface{}, len(columnNames))
+		valuePtrs := make([]interface{}, len(columnNames))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		row := make([]interface{}, len(columnNames))
+		for i, val := range values {
+			if val != nil {
+				switch v := val.(type) {
+				case []byte:
+					row[i] = string(v)
+				default:
+					row[i] = v
+				}
+			} else {
+				row[i] = nil
+			}
+		}
+		resultRows = append(resultRows, row)
+	}
+
+	return &models.SQLQueryResult{
+		Columns:  columnNames,
+		Rows:     resultRows,
+		RowCount: len(resultRows),
+	}, nil
+}
+
+func (s *SQLiteDB) executeNonSelectQuery(sqlQuery string) (*models.SQLQueryResult, error) {
+	result, err := s.db.Exec(sqlQuery)
+	if err != nil {
+		return nil, s.parseConstraintError(err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+
+	return &models.SQLQueryResult{
+		Columns:      []string{"rows_affected"},
+		Rows:         [][]interface{}{{rowsAffected}},
+		RowCount:     1,
+		RowsAffected: int(rowsAffected),
 	}, nil
 }

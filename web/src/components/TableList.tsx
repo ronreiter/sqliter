@@ -1,26 +1,44 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Table } from '../types';
 
 interface TableListProps {
   tables: Table[];
-  selectedTable: string | null;
-  onTableSelect: (tableName: string) => void;
   pendingChangesByTable: Record<string, number>;
 }
 
-export const TableList: React.FC<TableListProps> = ({ tables, selectedTable, onTableSelect, pendingChangesByTable }) => {
+export const TableList: React.FC<TableListProps> = ({ tables, pendingChangesByTable }) => {
+  const location = useLocation();
+  const currentPath = location.pathname;
+
   return (
-    <div className="w-64 bg-gray-100 border-r border-gray-300 h-full overflow-y-auto">
+    <div className="w-64 bg-gray-100 border-r border-gray-300 h-full overflow-y-auto flex-shrink-0">
       <div className="p-4 border-b border-gray-300 bg-gray-50">
         <h2 className="text-lg font-semibold text-gray-800">Tables</h2>
       </div>
+
+      {/* SQL Editor Button */}
+      <div className="p-2 border-b border-gray-300">
+        <Link
+          to="/sql"
+          className={`w-full text-left p-3 rounded-md mb-1 transition-colors flex items-center block ${
+            currentPath === '/sql'
+              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+              : 'hover:bg-gray-200 text-gray-700'
+          }`}
+        >
+          <i className="ti ti-code mr-2"></i>
+          <span className="font-medium">SQL Editor</span>
+        </Link>
+      </div>
+
       <div className="p-2">
         {tables.map((table) => (
-          <button
+          <Link
             key={table.name}
-            onClick={() => onTableSelect(table.name)}
-            className={`w-full text-left p-3 rounded-md mb-1 transition-colors ${
-              selectedTable === table.name
+            to={`/table/${table.name}`}
+            className={`w-full text-left p-3 rounded-md mb-1 transition-colors block ${
+              currentPath === `/table/${table.name}`
                 ? 'bg-blue-100 text-blue-800 border border-blue-200'
                 : 'hover:bg-gray-200 text-gray-700'
             }`}
@@ -36,7 +54,7 @@ export const TableList: React.FC<TableListProps> = ({ tables, selectedTable, onT
                 </span>
               )}
             </div>
-          </button>
+          </Link>
         ))}
         {tables.length === 0 && (
           <p className="text-gray-500 text-sm p-3">No tables found</p>

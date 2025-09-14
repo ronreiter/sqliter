@@ -20,6 +20,7 @@ export interface Row {
 export interface TableData {
   columns: Column[];
   rows: Row[];
+  total: number;
 }
 
 export interface InsertRequest {

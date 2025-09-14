@@ -48,6 +48,9 @@ interface ConfirmDialog {
 
 const getInputType = (columnType: string): string => {
   const type = columnType.toLowerCase();
+  if (type.includes('bool') || type.includes('boolean')) {
+    return 'checkbox';
+  }
   if (type.includes('int') || type.includes('real') || type.includes('numeric') || type.includes('decimal')) {
     return 'number';
   }
@@ -67,6 +70,17 @@ const getInputType = (columnType: string): string => {
     return 'url';
   }
   return 'text';
+};
+
+const isBooleanColumn = (columnType: string): boolean => {
+  const type = columnType.toLowerCase();
+  return type.includes('bool') || type.includes('boolean');
+};
+
+const getBooleanValue = (value: any): boolean => {
+  if (value === null || value === undefined) return false;
+  const str = String(value).toLowerCase();
+  return str === 'true' || str === '1';
 };
 
 interface ErrorDialogProps {
@@ -190,7 +204,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, columns,
                 onChange={(e) => setFormData({ ...formData, [column.name]: e.target.value })}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 required={column.not_null}
-                disabled={column.primary_key && initialData}
+                disabled={column.primary_key && !!initialData}
               />
             </div>
           ))}
@@ -603,6 +617,11 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     setCurrentPage(page);
   };
 
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
   const getRowPendingChanges = (rowIndex: number) => {
     return Object.keys(pendingChanges).filter(key => key.startsWith(`${rowIndex}-`));
   };
@@ -632,7 +651,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       <div className="border-b border-gray-300 p-4 bg-white">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-800">{tableName}</h2>
@@ -683,10 +702,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse min-w-max">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700 w-12">
+              <th className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 w-12">
                 <input
                   type="checkbox"
                   checked={selectedRows.size === tableData.rows.length && tableData.rows.length > 0}
@@ -697,7 +716,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               {tableData.columns.map((column) => (
                 <th
                   key={column.name}
-                  className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700"
+                  className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700"
                 >
                   <div className="flex flex-col">
                     <span>{column.name}</span>
@@ -710,7 +729,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   </div>
                 </th>
               ))}
-              <th className="border border-gray-300 px-4 py-2 text-left text-sm font-medium text-gray-700 w-24">
+              <th className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 w-24">
                 Actions
               </th>
             </tr>
@@ -722,7 +741,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 className={`hover:bg-gray-50 group cursor-pointer ${selectedRows.has(index) ? 'bg-blue-50' : ''}`}
                 onClick={() => handleRowSelect(index)}
               >
-                <td className="border border-gray-300 px-4 py-2 text-center">
+                <td className="border border-gray-300 px-2 py-1 text-center">
                   <input
                     type="checkbox"
                     checked={selectedRows.has(index)}
@@ -740,7 +759,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   return (
                     <td
                       key={column.name}
-                      className={`border border-gray-300 px-4 py-2 text-sm text-gray-900 ${hasChange ? 'bg-yellow-100' : ''}`}
+                      className={`border border-gray-300 px-2 py-1 text-xs text-gray-900 ${hasChange ? 'bg-yellow-100' : ''}`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex-1">
@@ -762,11 +781,19 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                             />
                           ) : (
                             <div
-                              className="max-w-xs overflow-hidden text-ellipsis cursor-pointer"
+                              className="max-w-xs overflow-hidden text-ellipsis cursor-pointer whitespace-nowrap"
                               onDoubleClick={() => handleCellDoubleClick(index, column.name, row[column.name])}
+                              title={displayValue === null ? 'NULL' : String(displayValue)}
                             >
                               {displayValue === null ? (
                                 <span className="text-gray-400 italic">NULL</span>
+                              ) : isBooleanColumn(column.type) ? (
+                                <input
+                                  type="checkbox"
+                                  checked={getBooleanValue(displayValue)}
+                                  readOnly
+                                  className="pointer-events-none"
+                                />
                               ) : (
                                 String(displayValue)
                               )}
@@ -786,7 +813,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                     </td>
                   );
                 })}
-                <td className="border border-gray-300 px-4 py-2 text-sm">
+                <td className="border border-gray-300 px-2 py-1 text-xs">
                   <div className="flex gap-1">
                     {getRowPendingChanges(index).length > 0 ? (
                       <i
@@ -813,24 +840,34 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               </tr>
             ))}
             <tr className="bg-green-50 group">
-              <td className="border border-gray-300 px-4 py-2 text-center">
+              <td className="border border-gray-300 px-2 py-1 text-center">
                 <i className="ti ti-plus text-green-600"></i>
               </td>
               {tableData.columns.map((column) => (
                 <td
                   key={column.name}
-                  className="border border-gray-300 px-4 py-2 text-sm"
+                  className="border border-gray-300 px-2 py-1 text-xs"
                 >
                   <div className="flex items-center gap-1">
-                    <input
-                      type={getInputType(column.type)}
-                      value={newRowData[column.name] || ''}
-                      onChange={(e) => handleNewRowChange(column.name, e.target.value)}
-                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                      placeholder={column.primary_key ? 'Auto' : (column.not_null ? 'Required' : 'Optional')}
-                      disabled={column.primary_key && column.name === 'id'}
-                      required={column.not_null && !column.primary_key}
-                    />
+                    {getInputType(column.type) === 'checkbox' ? (
+                      <input
+                        type="checkbox"
+                        checked={getBooleanValue(newRowData[column.name])}
+                        onChange={(e) => handleNewRowChange(column.name, e.target.checked ? 'true' : 'false')}
+                        className="px-2 py-1 text-sm"
+                        disabled={column.primary_key && column.name === 'id'}
+                      />
+                    ) : (
+                      <input
+                        type={getInputType(column.type)}
+                        value={newRowData[column.name] || ''}
+                        onChange={(e) => handleNewRowChange(column.name, e.target.value)}
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                        placeholder={column.primary_key ? 'Auto' : (column.not_null ? 'Required' : 'Optional')}
+                        disabled={column.primary_key && column.name === 'id'}
+                        required={column.not_null && !column.primary_key}
+                      />
+                    )}
                     {!column.not_null && !column.primary_key && (
                       <button
                         onClick={() => handleNewRowChange(column.name, null)}
@@ -844,7 +881,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   </div>
                 </td>
               ))}
-              <td className="border border-gray-300 px-4 py-2 text-sm">
+              <td className="border border-gray-300 px-2 py-1 text-xs">
                 <button
                   onClick={handleAddNewRow}
                   disabled={!isNewRowValid()}
@@ -864,7 +901,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               <tr>
                 <td
                   colSpan={tableData.columns.length + 2}
-                  className="border border-gray-300 px-4 py-8 text-center text-gray-500"
+                  className="border border-gray-300 px-2 py-4 text-center text-gray-500 text-xs"
                 >
                   No data in this table
                 </td>

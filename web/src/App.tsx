@@ -1,12 +1,95 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { TableList } from './components/TableList';
 import { TableView } from './components/TableView';
+import { SqlEditor } from './components/SqlEditor';
 import { api } from './api';
 import { Table, DatabaseInfo } from './types';
 
+// Layout component that wraps all pages
+function Layout({ children, tables, databaseInfo, pendingChangesByTable }: {
+  children: React.ReactNode;
+  tables: Table[];
+  databaseInfo: DatabaseInfo | null;
+  pendingChangesByTable: Record<string, number>;
+}) {
+  return (
+    <div className="h-screen flex flex-col">
+      <header className="bg-blue-600 text-white p-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <i className="ti ti-database"></i>
+          SQLiter{databaseInfo && ` - ${databaseInfo.filename}`}
+        </h1>
+        <p className="text-blue-100 text-sm">SQLite Database Editor</p>
+      </header>
+
+      <div className="flex-1 flex">
+        <TableList
+          tables={tables}
+          pendingChangesByTable={pendingChangesByTable}
+        />
+        <div className="flex-1 overflow-hidden">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Home page component
+function HomePage() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center text-gray-500">
+        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
+        </svg>
+        <p className="text-lg">Select a table to view its contents or use the SQL Editor</p>
+      </div>
+    </div>
+  );
+}
+
+// Table page component
+function TablePage() {
+  const { tableName } = useParams<{ tableName: string }>();
+  const navigate = useNavigate();
+  const [pendingChanges, setPendingChanges] = useState(0);
+
+  const loadTables = async () => {
+    // This would be called when tables are refreshed
+    window.location.reload();
+  };
+
+  const handlePendingChangesUpdate = (table: string, count: number) => {
+    setPendingChanges(count);
+  };
+
+  if (!tableName) {
+    return <HomePage />;
+  }
+
+  return (
+    <TableView
+      tableName={tableName}
+      onRefresh={loadTables}
+      onPendingChangesUpdate={handlePendingChangesUpdate}
+    />
+  );
+}
+
+// SQL Editor page component
+function SqlEditorPage() {
+  const loadTables = async () => {
+    // Refresh tables after SQL operations that might change schema
+    window.location.reload();
+  };
+
+  return <SqlEditor onRefresh={loadTables} />;
+}
+
 function App() {
   const [tables, setTables] = useState<Table[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
@@ -22,10 +105,6 @@ function App() {
       setTables(fetchedTables);
       setDatabaseInfo(dbInfo);
       setError(null);
-
-      if (fetchedTables.length > 0 && !selectedTable) {
-        setSelectedTable(fetchedTables[0].name);
-      }
     } catch (err) {
       setError('Failed to load tables');
       console.error('Error loading tables:', err);
@@ -37,10 +116,6 @@ function App() {
   useEffect(() => {
     loadTables();
   }, []);
-
-  const handleTableSelect = (tableName: string) => {
-    setSelectedTable(tableName);
-  };
 
   const handlePendingChangesUpdate = (tableName: string, count: number) => {
     setPendingChangesByTable(prev => ({
@@ -74,43 +149,23 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <i className="ti ti-database"></i>
-          SQLiter{databaseInfo && ` - ${databaseInfo.filename}`}
-        </h1>
-        <p className="text-blue-100 text-sm">SQLite Database Editor</p>
-      </header>
-
-      <div className="flex-1 flex">
-        <TableList
-          tables={tables}
-          selectedTable={selectedTable}
-          onTableSelect={handleTableSelect}
-          pendingChangesByTable={pendingChangesByTable}
-        />
-
-        <div className="flex-1 flex">
-          {selectedTable ? (
-            <TableView
-              tableName={selectedTable}
-              onRefresh={loadTables}
-              onPendingChangesUpdate={handlePendingChangesUpdate}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
-                </svg>
-                <p className="text-lg">Select a table to view its contents</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/" element={
+        <Layout tables={tables} databaseInfo={databaseInfo} pendingChangesByTable={pendingChangesByTable}>
+          <HomePage />
+        </Layout>
+      } />
+      <Route path="/table/:tableName" element={
+        <Layout tables={tables} databaseInfo={databaseInfo} pendingChangesByTable={pendingChangesByTable}>
+          <TablePage />
+        </Layout>
+      } />
+      <Route path="/sql" element={
+        <Layout tables={tables} databaseInfo={databaseInfo} pendingChangesByTable={pendingChangesByTable}>
+          <SqlEditorPage />
+        </Layout>
+      } />
+    </Routes>
   );
 }
 
