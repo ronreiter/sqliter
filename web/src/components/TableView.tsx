@@ -87,6 +87,32 @@ const isUrl = (str: string): boolean => {
   return urlRegex.test(str.trim());
 };
 
+const renderTextWithUrls = (text: string): JSX.Element => {
+  const urlRegex = /(https?:\/\/(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w._~!$&'()*+,;=:@-]|%[\dA-F]{2})*)*(?:\?(?:[;&\w._~!$&'()*+,;=:@-]|%[\dA-F]{2})*)?(?:#(?:[\w._~!$&'()*+,;=:@-]|%[\dA-F]{2})*)?)/gi;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (urlRegex.test(part)) {
+          return (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-700 underline"
+            >
+              {part}
+            </a>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
+};
+
 
 
 
@@ -1019,18 +1045,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                   className="cursor-pointer"
                                 />
                               ) : (
-                                isUrl(String(displayValue)) ? (
-                                  <a
-                                    href={String(displayValue)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-500 hover:text-blue-700 underline"
-                                  >
-                                    {String(displayValue)}
-                                  </a>
-                                ) : (
-                                  String(displayValue)
-                                )
+                                renderTextWithUrls(String(displayValue))
                               )}
                             </div>
                           )}
