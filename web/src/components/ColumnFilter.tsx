@@ -164,7 +164,7 @@ export const ColumnFilter: React.FC<ColumnFilterProps> = ({ column, filter, onCh
         )}
       </div>
 
-      {needsValueInput && (
+      {needsValueInput && filter && (
         <div>
           {filterType === 'boolean' ? (
             <select
@@ -188,14 +188,14 @@ export const ColumnFilter: React.FC<ColumnFilterProps> = ({ column, filter, onCh
             <input
               type={column.type.toLowerCase().includes('datetime') || column.type.toLowerCase().includes('timestamp') ? 'datetime-local' :
                     column.type.toLowerCase().includes('time') ? 'time' : 'date'}
-              value={localValue}
+              value={localValue || ''}
               onChange={(e) => handleValueChange(e.target.value)}
               className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
             />
           ) : (
             <input
               type="text"
-              value={localValue}
+              value={localValue || ''}
               onChange={(e) => handleValueChange(e.target.value)}
               className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
               placeholder="Enter text"

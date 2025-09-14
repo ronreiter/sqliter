@@ -2,6 +2,8 @@
 
 A web-based SQLite database editor with a Go backend and React frontend, packaged as a single executable.
 
+![SQLiter Screenshot](sqliter.png)
+
 ## Features
 
 - Web-based interface for browsing SQLite databases

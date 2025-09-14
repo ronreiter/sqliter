@@ -163,8 +163,13 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const buildFilterQuery = (): string[] => {
     const conditions: string[] = [];
 
+    // Safety check for filters object
+    if (!filters || typeof filters !== 'object') {
+      return conditions;
+    }
+
     Object.values(filters).forEach(filter => {
-      if (!filter || !filter.columnName) {
+      if (!filter || !filter.columnName || typeof filter !== 'object') {
         return; // Skip invalid filters
       }
 
@@ -575,7 +580,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   };
 
   const handleSelectAll = () => {
-    if (!tableData) return;
+    if (!tableData || !tableData.rows || !Array.isArray(tableData.rows)) return;
     if (selectedRows.size === tableData.rows.length) {
       setSelectedRows(new Set());
     } else {
@@ -595,9 +600,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   };
 
   const handleBulkDeleteConfirmed = async () => {
+    if (!tableData || !tableData.columns || !Array.isArray(tableData.columns)) {
+      showError('Cannot Delete Rows', 'Table data is not available.');
+      return;
+    }
+
     try {
-      const primaryKeyColumns = tableData!.columns.filter(col => col.primary_key);
-      if (primaryKeyColumns.length === 0) {
+      const primaryKeyColumns = tableData.columns.filter(col => col && col.primary_key);
+      if (!primaryKeyColumns || primaryKeyColumns.length === 0) {
         showError('Cannot Delete Rows', 'This table has no primary key defined, which is required for row deletion.');
         return;
       }
@@ -847,13 +857,13 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 <div className="flex justify-center">
                   <input
                     type="checkbox"
-                    checked={selectedRows.size === tableData.rows.length && tableData.rows.length > 0}
+                    checked={tableData.rows && selectedRows.size === tableData.rows.length && tableData.rows.length > 0}
                     onChange={handleSelectAll}
                     className="rounded"
                   />
                 </div>
               </th>
-              {tableData.columns.map((column) => (
+              {(tableData.columns || []).map((column) => (
                 <th
                   key={column.name}
                   className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700"
@@ -897,7 +907,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             </tr>
           </thead>
           <tbody>
-            {tableData.rows.map((row, index) => (
+            {(tableData.rows || []).map((row, index) => (
               <tr
                 key={index}
                 className={`hover:bg-gray-50 group cursor-pointer ${selectedRows.has(index) ? 'bg-blue-50' : ''}`}
@@ -1026,7 +1036,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               <td className="border border-gray-300 px-2 py-1 text-center">
                 <i className="ti ti-plus text-green-600"></i>
               </td>
-              {tableData.columns.map((column) => (
+              {(tableData.columns || []).map((column) => (
                 <td
                   key={column.name}
                   className="border border-gray-300 px-2 py-1 text-xs"
@@ -1080,10 +1090,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 </button>
               </td>
             </tr>
-            {tableData.rows.length === 0 && (
+            {(!tableData.rows || tableData.rows.length === 0) && (
               <tr>
                 <td
-                  colSpan={tableData.columns.length + 2}
+                  colSpan={(tableData.columns || []).length + 2}
                   className="border border-gray-300 px-2 py-4 text-center text-gray-500 text-xs"
                 >
                   No data in this table

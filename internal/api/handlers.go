@@ -199,6 +199,7 @@ func (h *Handler) SetupRoutes() *gin.Engine {
 	r.Static("/static", "./web/dist")
 	r.Static("/assets", "./web/dist/assets")
 	r.StaticFile("/vite.svg", "./web/dist/vite.svg")
+	r.StaticFile("/database.svg", "./web/dist/database.svg")
 	r.StaticFile("/", "./web/dist/index.html")
 
 	api := r.Group("/api")
@@ -224,7 +225,8 @@ func (h *Handler) SetupRoutes() *gin.Engine {
 		// Don't serve index.html for static assets
 		if strings.HasPrefix(c.Request.URL.Path, "/assets") ||
 		   strings.HasPrefix(c.Request.URL.Path, "/static") ||
-		   c.Request.URL.Path == "/vite.svg" {
+		   c.Request.URL.Path == "/vite.svg" ||
+		   c.Request.URL.Path == "/database.svg" {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
