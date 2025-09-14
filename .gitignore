@@ -3,3 +3,5 @@ sqliter
 node_modules/
 dist/
 /web/dev_server.log
+/.task/checksum/build-backend
+/.task/checksum/build-frontend

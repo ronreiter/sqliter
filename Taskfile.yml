@@ -1,0 +1,74 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the complete SQLiter application (frontend and backend)
+    cmds:
+      - task: build:frontend
+      - task: build:backend
+
+  build:frontend:
+    desc: Build the React frontend
+    dir: web
+    cmds:
+      - npm run build
+    sources:
+      - src/**/*
+      - package.json
+      - package-lock.json
+    generates:
+      - dist/**/*
+
+  build:backend:
+    desc: Build the Go backend
+    cmds:
+      - go build -o sqliter ./cmd
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - sqliter
+
+  build-docker:
+    desc: Build Docker image for SQLiter
+    cmds:
+      - docker build -t sqliter:latest .
+    sources:
+      - Dockerfile
+      - "**/*.go"
+      - go.mod
+      - go.sum
+      - web/src/**/*
+      - web/package.json
+      - web/package-lock.json
+
+  dev:
+    desc: Start development server
+    dir: web
+    cmds:
+      - npm run dev
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf web/dist
+      - rm -f sqliter
+
+  install:
+    desc: Install frontend dependencies
+    dir: web
+    cmds:
+      - npm install
+
+  run:
+    desc: Run SQLiter with default database
+    deps: [build]
+    cmds:
+      - ./sqliter --port 8080 --db example.db
+
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...

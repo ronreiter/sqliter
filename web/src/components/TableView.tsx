@@ -188,7 +188,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, columns,
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg p-6 w-[600px] max-h-[600px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold mb-4">{title}</h3>
         <form onSubmit={handleSubmit}>
           {columns.map((column) => (
@@ -307,6 +307,9 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       setError(null);
       // Clear selections when loading new data
       setSelectedRows(new Set());
+      // Clear pending changes when refreshing
+      setPendingChanges({});
+      setEditingCell(null);
     } catch (err) {
       setError('Failed to load table data');
       console.error('Error loading table data:', err);
@@ -389,13 +392,29 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   };
 
   // New handler functions for inline editing
-  const handleCellDoubleClick = (rowIndex: number, columnName: string, currentValue: any) => {
+  const handleCellDoubleClick = (rowIndex: number, columnName: string) => {
     setEditingCell({ rowIndex, columnName });
   };
 
   const handleCellEdit = (rowIndex: number, columnName: string, newValue: any, originalValue: any) => {
     const changeKey = `${rowIndex}-${columnName}`;
-    if (newValue !== originalValue) {
+
+    // Normalize values for comparison
+    const normalizeValue = (val: any) => {
+      if (val === null || val === undefined) return null;
+      if (typeof val === 'boolean') return val.toString();
+      if (typeof val === 'string') {
+        // Handle boolean-like strings
+        if (val.toLowerCase() === 'true') return 'true';
+        if (val.toLowerCase() === 'false') return 'false';
+      }
+      return String(val);
+    };
+
+    const normalizedNew = normalizeValue(newValue);
+    const normalizedOriginal = normalizeValue(originalValue);
+
+    if (normalizedNew !== normalizedOriginal) {
       setPendingChanges(prev => ({
         ...prev,
         [changeKey]: { rowIndex, columnName, originalValue, newValue }
@@ -664,12 +683,22 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               Add Row
             </button>
             <button
-              onClick={loadTableData}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex items-center gap-2"
-              disabled={hasPendingChanges}
+              onClick={() => {
+                if (hasPendingChanges) {
+                  showConfirm(
+                    'Unsaved Changes',
+                    'You have unsaved changes. Refreshing will discard them. Continue?',
+                    loadTableData
+                  );
+                } else {
+                  loadTableData();
+                }
+              }}
+              className={`px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded text-sm flex items-center gap-2`}
+              disabled={loading}
             >
-              <i className="ti ti-refresh"></i>
-              Refresh
+              <i className={`ti ${loading ? 'ti-loader animate-spin' : 'ti-refresh'}`}></i>
+              {loading ? 'Loading...' : 'Refresh'}
             </button>
             {selectedRows.size > 0 && (
               <button
@@ -701,17 +730,55 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
         </div>
       </div>
 
+      <div className="border-t border-gray-300 p-3 bg-gray-50 flex items-center justify-between text-xs">
+        <div className="text-gray-600">
+          Showing {Math.min((currentPage - 1) * pageSize + 1, tableData.total)} - {Math.min(currentPage * pageSize, tableData.total)} of {tableData.total} rows
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-xs"
+          >
+            Previous
+          </button>
+          <span className="text-gray-600">
+            Page {currentPage} of {Math.ceil(tableData.total / pageSize)}
+          </span>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage >= Math.ceil(tableData.total / pageSize)}
+            className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-xs"
+          >
+            Next
+          </button>
+          <select
+            value={pageSize}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            className="ml-3 px-2 py-1 border border-gray-300 rounded text-xs"
+          >
+            <option value={25}>25 per page</option>
+            <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+            <option value={200}>200 per page</option>
+          </select>
+        </div>
+      </div>
+
       <div className="flex-1 overflow-auto">
+        <div className="min-h-0 max-h-0">
         <table className="w-full border-collapse min-w-max">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 w-12">
-                <input
-                  type="checkbox"
-                  checked={selectedRows.size === tableData.rows.length && tableData.rows.length > 0}
-                  onChange={handleSelectAll}
-                  className="rounded"
-                />
+              <th className="border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 w-12">
+                <div className="flex justify-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedRows.size === tableData.rows.length && tableData.rows.length > 0}
+                    onChange={handleSelectAll}
+                    className="rounded"
+                  />
+                </div>
               </th>
               {tableData.columns.map((column) => (
                 <th
@@ -764,21 +831,39 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex-1">
                           {isEditing ? (
-                            <input
-                              type={getInputType(column.type)}
-                              className="w-full h-8 px-2 py-1 text-sm border border-gray-300 rounded"
-                              defaultValue={displayValue === null ? '' : String(displayValue)}
-                              autoFocus
-                              onBlur={(e) => handleCellEdit(index, column.name, e.target.value, row[column.name])}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleCellEdit(index, column.name, e.currentTarget.value, row[column.name]);
-                                } else if (e.key === 'Escape') {
-                                  setEditingCell(null);
-                                }
-                              }}
-                            />
+                            getInputType(column.type) === 'checkbox' ? (
+                              <input
+                                type="checkbox"
+                                checked={getBooleanValue(displayValue)}
+                                autoFocus
+                                onChange={(e) => handleCellEdit(index, column.name, e.target.checked ? 'true' : 'false', row[column.name])}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    const newValue = !getBooleanValue(displayValue);
+                                    handleCellEdit(index, column.name, newValue ? 'true' : 'false', row[column.name]);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <input
+                                type={getInputType(column.type)}
+                                className="w-full h-8 px-2 py-1 text-sm border border-gray-300 rounded"
+                                defaultValue={displayValue === null ? '' : String(displayValue)}
+                                autoFocus
+                                onBlur={(e) => handleCellEdit(index, column.name, e.target.value, row[column.name])}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCellEdit(index, column.name, e.currentTarget.value, row[column.name]);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              />
+                            )
                           ) : (
                             <div
                               className="max-w-xs overflow-hidden text-ellipsis cursor-pointer whitespace-nowrap"
@@ -791,8 +876,11 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                 <input
                                   type="checkbox"
                                   checked={getBooleanValue(displayValue)}
-                                  readOnly
-                                  className="pointer-events-none"
+                                  onChange={(e) => {
+                                    const newValue = e.target.checked ? 'true' : 'false';
+                                    handleCellEdit(index, column.name, newValue, row[column.name]);
+                                  }}
+                                  className="cursor-pointer"
                                 />
                               ) : (
                                 String(displayValue)
@@ -909,42 +997,9 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
-      <div className="border-t border-gray-300 p-4 bg-gray-50 flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          Showing {Math.min((currentPage - 1) * pageSize + 1, tableData.total)} - {Math.min(currentPage * pageSize, tableData.total)} of {tableData.total} rows
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {Math.ceil(tableData.total / pageSize)}
-          </span>
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage >= Math.ceil(tableData.total / pageSize)}
-            className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
-          >
-            Next
-          </button>
-          <select
-            value={pageSize}
-            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-            className="ml-4 px-2 py-1 border border-gray-300 rounded text-sm"
-          >
-            <option value={25}>25 per page</option>
-            <option value={50}>50 per page</option>
-            <option value={100}>100 per page</option>
-            <option value={200}>200 per page</option>
-          </select>
-        </div>
-      </div>
 
       <EditModal
         isOpen={editModal.isOpen}
