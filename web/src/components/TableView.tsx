@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { TableData, Column } from '../types';
 import { api } from '../api';
+import { EditModal } from './EditModal';
+import { ErrorDialog } from './ErrorDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface TableViewProps {
   tableName: string;
@@ -8,14 +11,6 @@ interface TableViewProps {
   onPendingChangesUpdate?: (tableName: string, count: number) => void;
 }
 
-interface EditModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (data: Record<string, any>) => void;
-  columns: Column[];
-  initialData?: Record<string, any>;
-  title: string;
-}
 
 interface PendingChange {
   rowIndex: number;
@@ -45,6 +40,7 @@ interface ConfirmDialog {
   message: string;
   onConfirm: () => void;
 }
+
 
 const getInputType = (columnType: string): string => {
   const type = columnType.toLowerCase();
@@ -83,151 +79,8 @@ const getBooleanValue = (value: any): boolean => {
   return str === 'true' || str === '1';
 };
 
-interface ErrorDialogProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  onClose: () => void;
-}
 
-const ErrorDialogComponent: React.FC<ErrorDialogProps> = ({ isOpen, title, message, onClose }) => {
-  if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-96 max-w-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 mb-4">
-          <i className="ti ti-alert-circle text-red-500 text-2xl"></i>
-          <h3 className="text-lg font-semibold text-red-600">{title}</h3>
-        </div>
-        <p className="text-gray-700 mb-6 whitespace-pre-wrap">{message}</p>
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface ConfirmDialogProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  confirmButtonClass?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-const ConfirmDialogComponent: React.FC<ConfirmDialogProps> = ({
-  isOpen,
-  title,
-  message,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
-  confirmButtonClass = "bg-red-500 hover:bg-red-600",
-  onConfirm,
-  onCancel
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onCancel}>
-      <div className="bg-white rounded-lg p-6 w-96 max-w-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 mb-4">
-          <i className="ti ti-alert-triangle text-orange-500 text-2xl"></i>
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        </div>
-        <p className="text-gray-700 mb-6 whitespace-pre-wrap">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-          >
-            {cancelText}
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`px-4 py-2 text-white rounded ${confirmButtonClass}`}
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, columns, initialData, title }) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-    } else {
-      const emptyData: Record<string, any> = {};
-      columns.forEach(col => {
-        emptyData[col.name] = '';
-      });
-      setFormData(emptyData);
-    }
-  }, [initialData, columns]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-[600px] max-h-[600px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
-        <form onSubmit={handleSubmit}>
-          {columns.map((column) => (
-            <div key={column.name} className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {column.name}
-                {column.not_null && <span className="text-red-500">*</span>}
-                <span className="text-xs text-gray-500 ml-1">({column.type})</span>
-              </label>
-              <input
-                type={getInputType(column.type)}
-                value={formData[column.name] || ''}
-                onChange={(e) => setFormData({ ...formData, [column.name]: e.target.value })}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                required={column.not_null}
-                disabled={column.primary_key && !!initialData}
-              />
-            </div>
-          ))}
-          <div className="flex justify-end gap-2 mt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPendingChangesUpdate }) => {
   const [tableData, setTableData] = useState<TableData | null>(null);
@@ -247,7 +100,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   // Row selection and pagination state
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [pageSize, setPageSize] = useState(10);
 
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -790,10 +643,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             onChange={(e) => handlePageSizeChange(Number(e.target.value))}
             className="ml-3 px-2 py-1 border border-gray-300 rounded text-xs"
           >
+            <option value={10}>10 per page</option>
             <option value={25}>25 per page</option>
             <option value={50}>50 per page</option>
             <option value={100}>100 per page</option>
             <option value={200}>200 per page</option>
+            <option value={1000}>1,000 per page</option>
           </select>
         </div>
       </div>
@@ -1055,14 +910,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
         title={editModal.mode === 'insert' ? 'Add New Row' : 'Edit Row'}
       />
 
-      <ErrorDialogComponent
+      <ErrorDialog
         isOpen={errorDialog.isOpen}
         title={errorDialog.title}
         message={errorDialog.message}
         onClose={() => setErrorDialog({ isOpen: false, title: '', message: '' })}
       />
 
-      <ConfirmDialogComponent
+      <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}
         message={confirmDialog.message}
