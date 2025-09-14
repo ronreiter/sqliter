@@ -91,7 +91,7 @@ A powerful web-based SQLite database editor with a Go backend and React frontend
 docker build -t sqliter .
 
 # Run with your database
-docker run -p 1234:8080 -v /path/to/your/database.db:/data/database.db sqliter --port 8080 --db /data/database.db
+docker run -p 2826:2826 -v /path/to/your/database.db:/data/database.db sqliter --db /data/database.db
 ```
 
 ### Building from Source
@@ -101,7 +101,7 @@ docker run -p 1234:8080 -v /path/to/your/database.db:/data/database.db sqliter -
 task build
 
 # Run with your database
-./sqliter --port 1234 --db example.db
+./sqliter --db example.db
 ```
 
 ### Manual Build Steps
@@ -121,12 +121,12 @@ go build -o sqliter ./cmd/main.go
 
 3. **Run the application**:
 ```bash
-./sqliter --port 1234 --db your-database.db
+./sqliter --db your-database.db
 ```
 
 ## 📖 Usage
 
-Once running, open your browser to `http://localhost:1234` (or whatever port you specified).
+Once running, open your browser to `http://localhost:2826` (or whatever port you specified).
 
 ### Interface Overview
 - **Header**: Shows database filename and application title
@@ -184,7 +184,7 @@ For development, you can run the frontend and backend separately:
 ### Backend Development
 ```bash
 # Start the Go backend
-go run ./cmd/main.go --port 8080 --db your-database.db
+go run ./cmd/main.go --db your-database.db
 ```
 
 ### Frontend Development

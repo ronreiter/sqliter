@@ -19,8 +19,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-# Copy built frontend assets
-COPY --from=frontend-builder /app/web/dist ./web/dist
+# Copy built frontend assets for embedding
+COPY --from=frontend-builder /app/web/dist ./cmd/web/dist
 
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o sqliter ./cmd/main.go
 
@@ -31,10 +31,9 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates sqlite
 WORKDIR /root/
 
-# Copy the binary and frontend assets
+# Copy only the self-contained binary
 COPY --from=go-builder /app/sqliter .
-COPY --from=go-builder /app/web/dist ./web/dist
 
-EXPOSE 8080
+EXPOSE 2826
 
 ENTRYPOINT ["./sqliter"]

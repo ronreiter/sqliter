@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io/fs"
 	"net/http"
 	"sqliter/internal/db"
 	"sqliter/internal/models"
@@ -11,11 +12,12 @@ import (
 )
 
 type Handler struct {
-	db *db.SQLiteDB
+	db        *db.SQLiteDB
+	staticFS  fs.FS
 }
 
-func NewHandler(database *db.SQLiteDB) *Handler {
-	return &Handler{db: database}
+func NewHandler(database *db.SQLiteDB, staticFS fs.FS) *Handler {
+	return &Handler{db: database, staticFS: staticFS}
 }
 
 func (h *Handler) GetDatabaseInfo(c *gin.Context) {
@@ -181,6 +183,9 @@ func (h *Handler) ExecuteSQL(c *gin.Context) {
 func (h *Handler) SetupRoutes() *gin.Engine {
 	r := gin.Default()
 
+	// Use the provided static filesystem
+	distFS := h.staticFS
+
 	// CORS middleware
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -195,12 +200,40 @@ func (h *Handler) SetupRoutes() *gin.Engine {
 		c.Next()
 	})
 
-	// Serve static files
-	r.Static("/static", "./web/dist")
-	r.Static("/assets", "./web/dist/assets")
-	r.StaticFile("/vite.svg", "./web/dist/vite.svg")
-	r.StaticFile("/database.svg", "./web/dist/database.svg")
-	r.StaticFile("/", "./web/dist/index.html")
+	// Create sub-filesystem for assets
+	assetsFS, err := fs.Sub(distFS, "assets")
+	if err != nil {
+		panic("Failed to create assets sub-filesystem: " + err.Error())
+	}
+
+	// Serve embedded static files
+	r.StaticFS("/assets", http.FS(assetsFS))
+
+	// Serve specific files from embedded filesystem
+	r.GET("/vite.svg", func(c *gin.Context) {
+		data, err := fs.ReadFile(distFS, "vite.svg")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "image/svg+xml", data)
+	})
+	r.GET("/database.svg", func(c *gin.Context) {
+		data, err := fs.ReadFile(distFS, "database.svg")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "image/svg+xml", data)
+	})
+	r.GET("/", func(c *gin.Context) {
+		data, err := fs.ReadFile(distFS, "index.html")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "text/html", data)
+	})
 
 	api := r.Group("/api")
 	{
@@ -224,15 +257,19 @@ func (h *Handler) SetupRoutes() *gin.Engine {
 
 		// Don't serve index.html for static assets
 		if strings.HasPrefix(c.Request.URL.Path, "/assets") ||
-		   strings.HasPrefix(c.Request.URL.Path, "/static") ||
 		   c.Request.URL.Path == "/vite.svg" ||
 		   c.Request.URL.Path == "/database.svg" {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
 
-		// Serve React app for all other routes
-		c.File("./web/dist/index.html")
+		// Serve React app for all other routes from embedded filesystem
+		data, err := fs.ReadFile(distFS, "index.html")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "text/html", data)
 	})
 
 	return r

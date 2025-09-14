@@ -5,3 +5,4 @@ dist/
 /web/dev_server.log
 /.task/checksum/build-backend
 /.task/checksum/build-frontend
+cmd/web/

@@ -1,16 +1,21 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"sqliter/internal/api"
 	"sqliter/internal/db"
 )
 
+//go:embed all:web/dist
+var staticFiles embed.FS
+
 func main() {
 	var (
-		port   = flag.String("port", "8080", "Port to run the server on")
+		port   = flag.String("port", "2826", "Port to run the server on")
 		dbPath = flag.String("db", "", "Path to SQLite database file")
 	)
 	flag.Parse()
@@ -25,7 +30,13 @@ func main() {
 	}
 	defer database.Close()
 
-	handler := api.NewHandler(database)
+	// Create sub-filesystem for the dist directory
+	distFS, err := fs.Sub(staticFiles, "web/dist")
+	if err != nil {
+		log.Fatalf("Failed to create sub-filesystem for static files: %v", err)
+	}
+
+	handler := api.NewHandler(database, distFS)
 	router := handler.SetupRoutes()
 
 	fmt.Printf("Starting SQLiter on port %s with database %s\n", *port, *dbPath)
