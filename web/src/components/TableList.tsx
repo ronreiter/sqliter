@@ -33,7 +33,7 @@ export const TableList: React.FC<TableListProps> = ({ tables, pendingChangesByTa
       </div>
 
       <div className="p-2">
-        {tables.map((table) => (
+        {(tables || []).map((table) => (
           <Link
             key={table.name}
             to={`/table/${table.name}`}
@@ -56,7 +56,7 @@ export const TableList: React.FC<TableListProps> = ({ tables, pendingChangesByTa
             </div>
           </Link>
         ))}
-        {tables.length === 0 && (
+        {(tables || []).length === 0 && (
           <p className="text-gray-500 dark:text-gray-400 text-sm p-3">No tables found</p>
         )}
       </div>

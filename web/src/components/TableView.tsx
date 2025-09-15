@@ -70,6 +70,30 @@ const getInputType = (columnType: string): string => {
   return 'text';
 };
 
+const getDateValue = (value: any, inputType: string): string => {
+  if (!value || value === null || value === undefined) return '';
+
+  const dateStr = String(value);
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+
+    if (inputType === 'date') {
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD
+    } else if (inputType === 'time') {
+      return date.toTimeString().split(' ')[0].slice(0, 5); // HH:MM
+    } else if (inputType === 'datetime-local') {
+      // YYYY-MM-DDTHH:MM
+      const isoString = date.toISOString();
+      return isoString.slice(0, 16);
+    }
+  } catch (error) {
+    console.warn('Failed to parse date:', dateStr);
+  }
+
+  return String(value);
+};
+
 const isBooleanColumn = (columnType: string): boolean => {
   const type = columnType.toLowerCase();
   return type.includes('bool') || type.includes('boolean');
@@ -719,6 +743,29 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     return Object.keys(pendingChanges).filter(key => key.startsWith(`${rowIndex}-`));
   };
 
+  // Revert all pending changes for a specific row
+  const handleRevertRowChanges = (rowIndex: number) => {
+    const rowChanges = getRowPendingChanges(rowIndex);
+    const updatedPendingChanges = { ...pendingChanges };
+
+    // Remove all pending changes for this row
+    rowChanges.forEach(key => {
+      delete updatedPendingChanges[key];
+    });
+
+    setPendingChanges(updatedPendingChanges);
+  };
+
+  // Revert a specific cell change
+  const handleRevertCellChange = (rowIndex: number, columnName: string) => {
+    const changeKey = `${rowIndex}-${columnName}`;
+    const updatedPendingChanges = { ...pendingChanges };
+
+    delete updatedPendingChanges[changeKey];
+
+    setPendingChanges(updatedPendingChanges);
+  };
+
   // Filter handlers
   const handleFilterChange = (columnName: string, filter: ColumnFilter | null) => {
     setFilters(prev => {
@@ -1080,7 +1127,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                     className="rounded"
                   />
                 </td>
-                {tableData.columns.map((column) => {
+                {(tableData.columns || []).map((column) => {
                   const changeKey = `${index}-${column.name}`;
                   const hasChange = changeKey in pendingChanges;
                   const isEditing = editingCell?.rowIndex === index && editingCell?.columnName === column.name;
@@ -1115,7 +1162,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                               <input
                                 type={getInputType(column.type)}
                                 className="w-full h-8 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                defaultValue={displayValue === null ? '' : String(displayValue)}
+                                defaultValue={
+                                  displayValue === null ? '' :
+                                  (['date', 'time', 'datetime-local'].includes(getInputType(column.type))) ?
+                                    getDateValue(displayValue, getInputType(column.type)) :
+                                    String(displayValue)
+                                }
                                 autoFocus
                                 onBlur={(e) => handleCellEdit(index, column.name, e.target.value, row[column.name])}
                                 onKeyDown={(e) => {
@@ -1170,6 +1222,15 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                 <i className="ti ti-x text-xs"></i>
                               </button>
                             )}
+                            {hasChange && (
+                              <button
+                                onClick={() => handleRevertCellChange(index, column.name)}
+                                className="px-1 py-0.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Revert this cell"
+                              >
+                                <i className="ti ti-arrow-back-up text-xs"></i>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1179,11 +1240,13 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs">
                   <div className="flex gap-1">
                     {getRowPendingChanges(index).length > 0 ? (
-                      <i
-                        onClick={() => handleSaveChanges(index)}
-                        className="ti ti-device-floppy text-orange-500 hover:text-orange-600 cursor-pointer text-lg"
-                        title="Save changes for this row"
-                      ></i>
+                      <>
+                        <i
+                          onClick={() => handleSaveChanges(index)}
+                          className="ti ti-device-floppy text-orange-500 hover:text-orange-600 cursor-pointer text-lg"
+                          title="Save changes for this row"
+                        ></i>
+                      </>
                     ) : (
                       <>
                         <i
