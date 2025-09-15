@@ -393,6 +393,17 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     }
   };
 
+  // Reset sorting, filtering, and pagination when table changes
+  useEffect(() => {
+    setSortColumn(null);
+    setSortDirection('asc');
+    setFilters({});
+    setCurrentPage(1);
+    setShowFilters(false);
+    // Clear URL parameters when switching tables
+    setSearchParams({}, { replace: true });
+  }, [tableName]);
+
   useEffect(() => {
     loadTableData();
   }, [tableName, currentPage, pageSize, sortColumn, sortDirection, filters]);
