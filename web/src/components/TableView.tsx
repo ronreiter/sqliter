@@ -94,6 +94,48 @@ const getDateValue = (value: any, inputType: string): string => {
   return String(value);
 };
 
+const formatDateForDisplay = (value: any, columnType: string): string => {
+  if (!value || value === null || value === undefined) return '';
+
+  const dateStr = String(value);
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr; // Return original if not a valid date
+
+    const type = columnType.toLowerCase();
+
+    if (type.includes('datetime') || type.includes('timestamp')) {
+      // Format as: "Sep 13, 2025 2:43 PM"
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } else if (type.includes('date')) {
+      // Format as: "Sep 13, 2025"
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } else if (type.includes('time')) {
+      // Format as: "2:43 PM"
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to format date for display:', dateStr);
+  }
+
+  return dateStr; // Return original value if formatting fails
+};
+
 const isBooleanColumn = (columnType: string): boolean => {
   const type = columnType.toLowerCase();
   return type.includes('bool') || type.includes('boolean');
@@ -1199,7 +1241,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                   className="cursor-pointer"
                                 />
                               ) : (
-                                renderTextWithUrls(String(displayValue))
+                                renderTextWithUrls(
+                                  (column.type.toLowerCase().includes('date') ||
+                                   column.type.toLowerCase().includes('time')) ?
+                                    formatDateForDisplay(displayValue, column.type) :
+                                    String(displayValue)
+                                )
                               )}
                             </div>
                           )}
