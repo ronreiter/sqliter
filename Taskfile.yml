@@ -65,8 +65,7 @@ tasks:
     desc: Run SQLiter with default database
     deps: [build]
     cmds:
-      - ./sqliter --port 8197 --db example.db
-
+      - ./sqliter --db example.db
 
   test:
     desc: Run tests

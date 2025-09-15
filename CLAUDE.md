@@ -45,3 +45,14 @@ task test           # Run Go tests
 - Frontend development server runs on port 3000
 - Production server runs on port 8080 (configurable)
 - Example database: `example.db`
+
+### Development Workflow
+
+**IMPORTANT**: When making any changes to the codebase, always follow this workflow:
+
+1. **Clean**: Run `task clean` to remove build artifacts
+2. **Build**: Run `task build` to build both frontend and backend
+3. **Run**: Run `task run` to start the application
+4. **Test UI**: Use browser MCP to analyze the UI and verify changes work correctly
+
+This ensures all changes are properly compiled and tested before proceeding.
