@@ -22,7 +22,7 @@ tasks:
   build:backend:
     desc: Build the Go backend
     cmds:
-      - go build -o sqliter ./cmd
+      - go build -o sqliter .
     sources:
       - "**/*.go"
       - go.mod

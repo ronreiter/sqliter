@@ -145,6 +145,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
 
+  // Column resize state
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [isResizing, setIsResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
+
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<ErrorDialog>({
     isOpen: false,
@@ -758,6 +762,77 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     }
   };
 
+  // Column resize handlers
+  const handleResizeStart = (e: React.MouseEvent, columnName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const currentWidth = columnWidths[columnName] || 150; // Default width
+    setIsResizing({ column: columnName, startX, startWidth: currentWidth });
+  };
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!isResizing) return;
+    const deltaX = e.clientX - isResizing.startX;
+    const newWidth = Math.max(50, isResizing.startWidth + deltaX); // Minimum width of 50px
+    setColumnWidths(prev => ({
+      ...prev,
+      [isResizing.column]: newWidth
+    }));
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(null);
+  };
+
+  // Mouse event listeners for column resizing
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = 'col-resize';
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = '';
+      };
+    }
+  }, [isResizing]);
+
+  // Get column width
+  const getColumnWidth = (columnName: string) => {
+    return columnWidths[columnName] || 150; // Default width
+  };
+
+  // CSV export handler
+  const handleExportCSV = async () => {
+    try {
+      const whereConditions = buildFilterQuery();
+      const whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : undefined;
+
+      const blob = await api.exportTableCSV(
+        tableName,
+        sortColumn || undefined,
+        sortColumn ? sortDirection : undefined,
+        whereClause
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${tableName}_export.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Error exporting CSV:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Unknown error occurred';
+      showError('Failed to Export CSV', errorMessage);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -902,6 +977,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               Clear
             </button>
           )}
+          <button
+            onClick={handleExportCSV}
+            className="ml-3 px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded text-xs hover:bg-green-200 flex items-center gap-1"
+            title="Export table data as CSV"
+          >
+            <i className="ti ti-download"></i>
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -923,7 +1006,8 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               {(tableData.columns || []).map((column) => (
                 <th
                   key={column.name}
-                  className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700"
+                  className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 relative"
+                  style={{ width: getColumnWidth(column.name), minWidth: getColumnWidth(column.name) }}
                 >
                   <div>
                     <div
@@ -956,6 +1040,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                       />
                     )}
                   </div>
+                  {/* Column resize handle */}
+                  <div
+                    className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-300 bg-transparent transition-colors"
+                    onMouseDown={(e) => handleResizeStart(e, column.name)}
+                    title="Resize column"
+                  />
                 </th>
               ))}
               <th className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 w-24">
@@ -989,6 +1079,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                     <td
                       key={column.name}
                       className={`border border-gray-300 px-2 py-1 text-xs text-gray-900 ${hasChange ? 'bg-yellow-100' : ''}`}
+                      style={{ width: getColumnWidth(column.name), minWidth: getColumnWidth(column.name) }}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex-1">
@@ -1108,6 +1199,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 <td
                   key={column.name}
                   className="border border-gray-300 px-2 py-1 text-xs"
+                  style={{ width: getColumnWidth(column.name), minWidth: getColumnWidth(column.name) }}
                 >
                   <div className="flex items-center gap-1">
                     {getInputType(column.type) === 'checkbox' ? (

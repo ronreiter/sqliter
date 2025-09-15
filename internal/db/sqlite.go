@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"fmt"
 	"path/filepath"
 	"sqliter/internal/models"
@@ -463,4 +464,86 @@ func (s *SQLiteDB) executeNonSelectQuery(sqlQuery string) (*models.SQLQueryResul
 		RowCount:     1,
 		RowsAffected: int(rowsAffected),
 	}, nil
+}
+
+func (s *SQLiteDB) ExportTableCSV(tableName, sortColumn, sortDirection, whereClause string, writer *csv.Writer) error {
+	columns, err := s.GetTableSchema(tableName)
+	if err != nil {
+		return err
+	}
+
+	// Build the base query with optional WHERE clause
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", tableName)
+
+	if whereClause != "" {
+		baseQuery += fmt.Sprintf(" WHERE %s", whereClause)
+	}
+
+	// Build the query with optional sorting
+	query := baseQuery
+	if sortColumn != "" && sortDirection != "" {
+		// Validate sortColumn exists to prevent SQL injection
+		columnExists := false
+		for _, col := range columns {
+			if col.Name == sortColumn {
+				columnExists = true
+				break
+			}
+		}
+		if !columnExists {
+			return fmt.Errorf("invalid sort column: %s", sortColumn)
+		}
+		query += fmt.Sprintf(" ORDER BY %s %s", sortColumn, strings.ToUpper(sortDirection))
+	}
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return fmt.Errorf("failed to query table data: %w", err)
+	}
+	defer rows.Close()
+
+	columnNames, err := rows.Columns()
+	if err != nil {
+		return fmt.Errorf("failed to get column names: %w", err)
+	}
+
+	// Write header
+	if err := writer.Write(columnNames); err != nil {
+		return fmt.Errorf("failed to write CSV header: %w", err)
+	}
+
+	// Write data rows
+	for rows.Next() {
+		values := make([]interface{}, len(columnNames))
+		valuePtrs := make([]interface{}, len(columnNames))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Convert values to strings for CSV
+		csvRow := make([]string, len(columnNames))
+		for i, val := range values {
+			if val != nil {
+				switch v := val.(type) {
+				case []byte:
+					csvRow[i] = string(v)
+				default:
+					csvRow[i] = fmt.Sprintf("%v", v)
+				}
+			} else {
+				csvRow[i] = ""
+			}
+		}
+
+		if err := writer.Write(csvRow); err != nil {
+			return fmt.Errorf("failed to write CSV row: %w", err)
+		}
+	}
+
+	writer.Flush()
+	return writer.Error()
 }

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"encoding/csv"
 	"io/fs"
 	"net/http"
 	"sqliter/internal/db"
@@ -180,6 +182,42 @@ func (h *Handler) ExecuteSQL(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func (h *Handler) ExportTableCSV(c *gin.Context) {
+	tableName := c.Param("table")
+	if tableName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "table name is required"})
+		return
+	}
+
+	sortColumn := c.Query("sort_column")
+	sortDirection := c.Query("sort_direction")
+	whereClause := c.Query("where_clause")
+
+	// Validate sort direction if provided
+	if sortDirection != "" && sortDirection != "asc" && sortDirection != "desc" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort_direction parameter, must be 'asc' or 'desc'"})
+		return
+	}
+
+	// Create a buffer to write CSV data
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// Export data to CSV
+	if err := h.db.ExportTableCSV(tableName, sortColumn, sortDirection, whereClause, writer); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set appropriate headers for file download
+	filename := tableName + "_export.csv"
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Type", "text/csv")
+
+	// Return the CSV data
+	c.Data(http.StatusOK, "text/csv", buf.Bytes())
+}
+
 func (h *Handler) SetupRoutes() *gin.Engine {
 	r := gin.Default()
 
@@ -241,6 +279,7 @@ func (h *Handler) SetupRoutes() *gin.Engine {
 		api.GET("/tables", h.GetTables)
 		api.GET("/tables/:table/schema", h.GetTableSchema)
 		api.GET("/tables/:table/data", h.GetTableData)
+		api.GET("/tables/:table/export/csv", h.ExportTableCSV)
 		api.POST("/tables/:table/rows", h.InsertRow)
 		api.PUT("/tables/:table/rows", h.UpdateRow)
 		api.DELETE("/tables/:table/rows", h.DeleteRow)

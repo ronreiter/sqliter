@@ -48,4 +48,20 @@ export const api = {
     const request: DeleteRequest = { where };
     await axios.delete(`${API_BASE}/tables/${tableName}/rows`, { data: request });
   },
+
+  async exportTableCSV(tableName: string, sortColumn?: string, sortDirection?: 'asc' | 'desc', whereClause?: string): Promise<Blob> {
+    const params: any = {};
+    if (sortColumn && sortDirection) {
+      params.sort_column = sortColumn;
+      params.sort_direction = sortDirection;
+    }
+    if (whereClause) {
+      params.where_clause = whereClause;
+    }
+    const response = await axios.get(`${API_BASE}/tables/${tableName}/export/csv`, {
+      params,
+      responseType: 'blob'
+    });
+    return response.data;
+  },
 };
