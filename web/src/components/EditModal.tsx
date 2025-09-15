@@ -15,8 +15,11 @@ const getInputType = (columnType: string): string => {
   if (type.includes('bool') || type.includes('boolean')) {
     return 'checkbox';
   }
-  if (type.includes('int') || type.includes('real') || type.includes('numeric') || type.includes('decimal')) {
+  if (type.includes('int') || type.includes('real') || type.includes('float') || type.includes('double') || type.includes('numeric') || type.includes('decimal')) {
     return 'number';
+  }
+  if (type.includes('blob') || type.includes('binary')) {
+    return 'blob';
   }
   if (type.includes('datetime') || type.includes('timestamp')) {
     return 'datetime-local';

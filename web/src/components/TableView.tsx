@@ -6,6 +6,7 @@ import { EditModal } from './EditModal';
 import { ErrorDialog } from './ErrorDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ColumnFilterComponent } from './ColumnFilter';
+import { HexEditorModal } from './HexEditor';
 
 interface TableViewProps {
   tableName: string;
@@ -49,8 +50,11 @@ const getInputType = (columnType: string): string => {
   if (type.includes('bool') || type.includes('boolean')) {
     return 'checkbox';
   }
-  if (type.includes('int') || type.includes('real') || type.includes('numeric') || type.includes('decimal')) {
+  if (type.includes('int') || type.includes('real') || type.includes('float') || type.includes('double') || type.includes('numeric') || type.includes('decimal')) {
     return 'number';
+  }
+  if (type.includes('blob') || type.includes('binary')) {
+    return 'blob';
   }
   if (type.includes('datetime') || type.includes('timestamp')) {
     return 'datetime-local';
@@ -114,8 +118,8 @@ const formatDateForDisplay = (value: any, columnType: string): string => {
         minute: '2-digit',
         hour12: true
       });
-    } else if (type.includes('date')) {
-      // Format as: "Sep 13, 2025"
+    } else if (type === 'date' || (type.includes('date') && !type.includes('datetime'))) {
+      // Format as: "Sep 13, 2025" (date only, no time)
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -139,6 +143,23 @@ const formatDateForDisplay = (value: any, columnType: string): string => {
 const isBooleanColumn = (columnType: string): boolean => {
   const type = columnType.toLowerCase();
   return type.includes('bool') || type.includes('boolean');
+};
+
+const isBlobColumn = (columnType: string): boolean => {
+  const type = columnType.toLowerCase();
+  return type.includes('blob') || type.includes('binary');
+};
+
+const formatBlobForDisplay = (value: any): string => {
+  if (!value || value === null || value === undefined) return '';
+
+  const str = String(value);
+  if (str.length === 0) return '[Empty BLOB]';
+
+  // Show first few bytes and total size
+  const bytes = Math.ceil(str.length / 2); // Assuming hex representation
+  const preview = str.length > 20 ? str.substring(0, 20) + '...' : str;
+  return `[BLOB ${bytes} bytes] ${preview}`;
 };
 
 const getBooleanValue = (value: any): boolean => {
@@ -192,6 +213,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     mode: 'insert' | 'update';
     data?: Record<string, any>;
   }>({ isOpen: false, mode: 'insert' });
+
+  // Hex editor modal state
+  const [hexEditor, setHexEditor] = useState<{
+    isOpen: boolean;
+    data: string;
+    columnName: string;
+    rowIndex: number;
+  }>({ isOpen: false, data: '', columnName: '', rowIndex: -1 });
 
   // New state for inline editing and unsaved changes
   const [pendingChanges, setPendingChanges] = useState<Record<string, PendingChange>>({});
@@ -579,6 +608,28 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       ...prev,
       [columnName]: value
     }));
+  };
+
+  // BLOB handling functions
+  const handleBlobEdit = (rowIndex: number, columnName: string, currentValue: any) => {
+    setHexEditor({
+      isOpen: true,
+      data: currentValue || '',
+      columnName,
+      rowIndex
+    });
+  };
+
+  const handleBlobSave = (newValue: string) => {
+    if (hexEditor.rowIndex === -2) {
+      // Special case for new row
+      handleNewRowChange(hexEditor.columnName, newValue);
+    } else if (tableData && hexEditor.rowIndex >= 0) {
+      // Existing row edit
+      const originalValue = tableData.rows[hexEditor.rowIndex][hexEditor.columnName];
+      handleCellEdit(hexEditor.rowIndex, hexEditor.columnName, newValue, originalValue);
+    }
+    setHexEditor({ isOpen: false, data: '', columnName: '', rowIndex: -1 });
   };
 
   const handleSaveChanges = async (rowIndex: number) => {
@@ -1225,7 +1276,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                           ) : (
                             <div
                               className="w-full overflow-hidden text-ellipsis cursor-pointer whitespace-nowrap"
-                              onDoubleClick={() => handleCellDoubleClick(index, column.name, row[column.name])}
+                              onDoubleClick={isBlobColumn(column.type) ? undefined : () => handleCellDoubleClick(index, column.name, row[column.name])}
                               title={displayValue === null ? 'NULL' : String(displayValue)}
                             >
                               {displayValue === null ? (
@@ -1240,6 +1291,15 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                   }}
                                   className="cursor-pointer"
                                 />
+                              ) : isBlobColumn(column.type) ? (
+                                <span
+                                  className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                  onClick={() => handleBlobEdit(index, column.name, displayValue)}
+                                  onDoubleClick={() => handleBlobEdit(index, column.name, displayValue)}
+                                  title="Click or double-click to edit BLOB data"
+                                >
+                                  {formatBlobForDisplay(displayValue)}
+                                </span>
                               ) : (
                                 renderTextWithUrls(
                                   (column.type.toLowerCase().includes('date') ||
@@ -1254,9 +1314,11 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                         {!isEditing && (
                           <div className="flex gap-1">
                             <button
-                              onClick={() => handleCellDoubleClick(index, column.name, row[column.name])}
+                              onClick={() => isBlobColumn(column.type)
+                                ? handleBlobEdit(index, column.name, displayValue)
+                                : handleCellDoubleClick(index, column.name, row[column.name])}
                               className="px-1 py-0.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Edit cell"
+                              title={isBlobColumn(column.type) ? "Edit BLOB data" : "Edit cell"}
                             >
                               <i className="ti ti-edit text-xs"></i>
                             </button>
@@ -1331,6 +1393,23 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                         className="px-2 py-1 text-sm"
                         disabled={column.primary_key && column.name === 'id'}
                       />
+                    ) : getInputType(column.type) === 'blob' ? (
+                      <input
+                        type="text"
+                        value={newRowData[column.name] ? formatBlobForDisplay(newRowData[column.name]) : ''}
+                        onClick={() => {
+                          setHexEditor({
+                            isOpen: true,
+                            data: newRowData[column.name] || '',
+                            columnName: column.name,
+                            rowIndex: -2 // Special value for new row
+                          });
+                        }}
+                        readOnly
+                        placeholder="Click to edit binary data"
+                        className="flex-1 w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 cursor-pointer"
+                        disabled={column.primary_key && column.name === 'id'}
+                      />
                     ) : (
                       <input
                         type={getInputType(column.type)}
@@ -1401,6 +1480,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
         title={errorDialog.title}
         message={errorDialog.message}
         onClose={() => setErrorDialog({ isOpen: false, title: '', message: '' })}
+      />
+
+      <HexEditorModal
+        isOpen={hexEditor.isOpen}
+        onClose={() => setHexEditor({ isOpen: false, data: '', columnName: '', rowIndex: -1 })}
+        onSave={handleBlobSave}
+        initialData={hexEditor.data}
+        title={`Edit BLOB: ${hexEditor.columnName}`}
       />
 
       <ConfirmDialog
