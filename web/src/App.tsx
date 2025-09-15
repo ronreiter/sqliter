@@ -48,7 +48,7 @@ function Layout({ children, tables, databaseInfo, pendingChangesByTable }: {
 // Home page component
 function HomePage() {
   return (
-    <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
+    <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900 h-full">
       <div className="text-center text-gray-500 dark:text-gray-400">
         <i className="ti ti-database text-6xl mb-4 text-gray-300 dark:text-gray-600 block"></i>
         <p className="text-lg">Select a table to view its contents or use the SQL Editor</p>

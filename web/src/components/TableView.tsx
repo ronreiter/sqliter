@@ -146,7 +146,11 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const [filters, setFilters] = useState<FilterState>({});
 
   // Column resize state
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    // Load column widths from session storage for this table
+    const saved = sessionStorage.getItem(`columnWidths_${tableName}`);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [isResizing, setIsResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
 
   // Error dialog state
@@ -197,6 +201,13 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       onPendingChangesUpdate?.(tableName, 0);
     };
   }, [tableName, onPendingChangesUpdate]);
+
+  // Save column widths to session storage whenever they change
+  useEffect(() => {
+    if (Object.keys(columnWidths).length > 0) {
+      sessionStorage.setItem(`columnWidths_${tableName}`, JSON.stringify(columnWidths));
+    }
+  }, [columnWidths, tableName]);
 
   const buildFilterQuery = (): string[] => {
     const conditions: string[] = [];
@@ -801,7 +812,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
 
   // Get column width
   const getColumnWidth = (columnName: string) => {
-    return columnWidths[columnName] || 150; // Default width
+    return columnWidths[columnName] || 200; // Default width
   };
 
   // CSV export handler
@@ -1215,7 +1226,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                         type={getInputType(column.type)}
                         value={newRowData[column.name] || ''}
                         onChange={(e) => handleNewRowChange(column.name, e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        className="flex-1 w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         placeholder={column.primary_key ? 'Auto' : (column.not_null ? 'Required' : 'Optional')}
                         disabled={column.primary_key && column.name === 'id'}
                         required={column.not_null && !column.primary_key}
