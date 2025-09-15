@@ -3,7 +3,10 @@ import AceEditor from 'react-ace';
 
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
+import 'ace-builds/src-noconflict/theme-cloud_editor_dark';
 import 'ace-builds/src-noconflict/ext-language_tools';
+
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SqlEditorProps {
   onRefresh?: () => void;
@@ -17,6 +20,7 @@ interface QueryResult {
 }
 
 export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
+  const { isDark } = useTheme();
   const [sql, setSql] = useState('-- Enter your SQL query here\nSELECT name FROM sqlite_master WHERE type=\'table\';');
   const [results, setResults] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,9 +107,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
   return (
     <div className="flex flex-col h-full w-full">
       {/* Header */}
-      <div className="bg-gray-50 border-b border-gray-300 p-4">
+      <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
             <i className="ti ti-code mr-2"></i>
             SQL Editor
           </h2>
@@ -115,8 +119,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
               disabled={isExecuting || !sql.trim()}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 isExecuting || !sql.trim()
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white'
               }`}
             >
               {isExecuting ? (
@@ -137,11 +141,11 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
       </div>
 
       {/* SQL Editor */}
-      <div className="flex-1 border-b border-gray-300" style={{ minHeight: '300px' }}>
+      <div className="flex-1 border-b border-gray-300 dark:border-gray-600" style={{ minHeight: '300px' }}>
         <AceEditor
           ref={editorRef}
           mode="sql"
-          theme="github"
+          theme={isDark ? "cloud_editor_dark" : "github"}
           value={sql}
           onChange={setSql}
           width="100%"
@@ -172,11 +176,11 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
       </div>
 
       {/* Results Area */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-white">
+      <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-gray-900">
         {error && (
-          <div className="p-4 border-l-4 border-red-400 bg-red-50">
+          <div className="p-4 border-l-4 border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-900/20">
             <div className="flex">
-              <div className="text-sm text-red-700">
+              <div className="text-sm text-red-700 dark:text-red-400">
                 <strong>Error:</strong> {error}
               </div>
             </div>
@@ -184,7 +188,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
         )}
 
         {isExecuting && (
-          <div className="p-8 text-center text-gray-600">
+          <div className="p-8 text-center text-gray-600 dark:text-gray-400">
             <div className="flex items-center justify-center gap-2">
               <i className="ti ti-loader animate-spin text-xl"></i>
               <span>Executing query...</span>
@@ -194,14 +198,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
 
         {results && (
           <div className="flex-1 overflow-auto p-4">
-            <div className="mb-4 text-sm text-gray-600 flex items-center justify-between">
+            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between">
               <span>
                 {results.rowCount} rows returned in {results.executionTime.toFixed(1)}ms
               </span>
               {results.rows.length > 0 && (
                 <button
                   onClick={downloadCsv}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white rounded-md text-sm font-medium transition-colors"
                 >
                   <i className="ti ti-download"></i>
                   Download CSV
@@ -210,33 +214,33 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
             </div>
 
             {results.rows.length > 0 ? (
-              <div className="overflow-auto border border-gray-300 rounded-lg">
+              <div className="overflow-auto border border-gray-300 dark:border-gray-600 rounded-lg">
                 <table className="min-w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       {results.columns.map((column, index) => (
                         <th
                           key={index}
-                          className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300 last:border-r-0"
+                          className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r border-gray-300 dark:border-gray-600 last:border-r-0"
                         >
                           {column}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-300">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-300 dark:divide-gray-600">
                     {results.rows.map((row, rowIndex) => (
                       <tr
                         key={rowIndex}
-                        className="hover:bg-gray-50"
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         {row.map((cell, cellIndex) => (
                           <td
                             key={cellIndex}
-                            className="px-4 py-2 text-sm text-gray-900 border-r border-gray-300 last:border-r-0 font-mono"
+                            className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 border-r border-gray-300 dark:border-gray-600 last:border-r-0 font-mono"
                           >
                             {cell === null ? (
-                              <span className="text-gray-400 italic">NULL</span>
+                              <span className="text-gray-400 dark:text-gray-500 italic">NULL</span>
                             ) : (
                               String(cell)
                             )}
@@ -249,7 +253,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
               </div>
             ) : (
               results && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   Query executed successfully but returned no results.
                 </div>
               )
@@ -258,9 +262,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRefresh }) => {
         )}
 
         {!results && !isExecuting && !error && (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
             <div className="text-center">
-              <i className="ti ti-code text-4xl mb-4 text-gray-300"></i>
+              <i className="ti ti-code text-4xl mb-4 text-gray-300 dark:text-gray-600"></i>
               <div className="text-lg mb-2">Ready to execute SQL queries</div>
               <div className="text-sm">
                 Write your SQL query above and click "Run Query" or press Ctrl+Enter

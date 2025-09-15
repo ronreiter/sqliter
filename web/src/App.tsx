@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { Routes, Route, useParams, useNavigate, Link } from 'react-router-dom';
 import { TableList } from './components/TableList';
 import { TableView } from './components/TableView';
 import { SqlEditor } from './components/SqlEditor';
+import { ThemeToggle } from './components/ThemeToggle';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { api } from './api';
 import { Table, DatabaseInfo } from './types';
 
@@ -14,13 +16,20 @@ function Layout({ children, tables, databaseInfo, pendingChangesByTable }: {
   pendingChangesByTable: Record<string, number>;
 }) {
   return (
-    <div className="h-screen flex flex-col">
-      <header className="bg-blue-600 text-white p-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <i className="ti ti-database"></i>
-          SQLiter{databaseInfo && ` - ${databaseInfo.filename}`}
-        </h1>
-        <p className="text-blue-100 text-sm">SQLite Database Editor</p>
+    <div className="h-screen flex flex-col bg-white dark:bg-gray-900 transition-colors">
+      <header className="bg-blue-600 dark:bg-gray-700 text-white p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <Link to="/" className="hover:opacity-80 transition-opacity">
+              <h1 className="text-2xl font-bold flex items-center gap-2 text-white dark:text-gray-200">
+                <i className="ti ti-database"></i>
+                SQLiter{databaseInfo && ` - ${databaseInfo.filename}`}
+              </h1>
+            </Link>
+            <p className="text-blue-100 dark:text-gray-400 text-sm">SQLite Database Editor</p>
+          </div>
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex-1 flex">
@@ -28,7 +37,7 @@ function Layout({ children, tables, databaseInfo, pendingChangesByTable }: {
           tables={tables}
           pendingChangesByTable={pendingChangesByTable}
         />
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
           {children}
         </div>
       </div>
@@ -39,11 +48,9 @@ function Layout({ children, tables, databaseInfo, pendingChangesByTable }: {
 // Home page component
 function HomePage() {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center text-gray-500">
-        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
-        </svg>
+    <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
+      <div className="text-center text-gray-500 dark:text-gray-400">
+        <i className="ti ti-database text-6xl mb-4 text-gray-300 dark:text-gray-600 block"></i>
         <p className="text-lg">Select a table to view its contents or use the SQL Editor</p>
       </div>
     </div>
@@ -126,20 +133,20 @@ function App() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-xl text-gray-600">Loading SQLiter...</div>
+      <div className="h-screen flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-xl text-gray-600 dark:text-gray-300">Loading SQLiter...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
-          <div className="text-xl text-red-600 mb-4">{error}</div>
+          <div className="text-xl text-red-600 dark:text-red-400 mb-4">{error}</div>
           <button
             onClick={loadTables}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
           >
             Retry
           </button>
@@ -149,7 +156,8 @@ function App() {
   }
 
   return (
-    <Routes>
+    <ThemeProvider>
+      <Routes>
       <Route path="/" element={
         <Layout tables={tables} databaseInfo={databaseInfo} pendingChangesByTable={pendingChangesByTable}>
           <HomePage />
@@ -165,7 +173,8 @@ function App() {
           <SqlEditorPage />
         </Layout>
       } />
-    </Routes>
+      </Routes>
+    </ThemeProvider>
   );
 }
 

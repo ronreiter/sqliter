@@ -12,19 +12,19 @@ export const TableList: React.FC<TableListProps> = ({ tables, pendingChangesByTa
   const currentPath = location.pathname;
 
   return (
-    <div className="w-64 bg-gray-100 border-r border-gray-300 h-full overflow-y-auto flex-shrink-0">
-      <div className="p-4 border-b border-gray-300 bg-gray-50">
-        <h2 className="text-lg font-semibold text-gray-800">Tables</h2>
+    <div className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-300 dark:border-gray-600 h-full overflow-y-auto flex-shrink-0">
+      <div className="p-4 border-b border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Tables</h2>
       </div>
 
       {/* SQL Editor Button */}
-      <div className="p-2 border-b border-gray-300">
+      <div className="p-2 border-b border-gray-300 dark:border-gray-600">
         <Link
           to="/sql"
           className={`w-full text-left p-3 rounded-md mb-1 transition-colors flex items-center block ${
             currentPath === '/sql'
-              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-              : 'hover:bg-gray-200 text-gray-700'
+              ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
           }`}
         >
           <i className="ti ti-code mr-2"></i>
@@ -39,8 +39,8 @@ export const TableList: React.FC<TableListProps> = ({ tables, pendingChangesByTa
             to={`/table/${table.name}`}
             className={`w-full text-left p-3 rounded-md mb-1 transition-colors block ${
               currentPath === `/table/${table.name}`
-                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                : 'hover:bg-gray-200 text-gray-700'
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700'
+                : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
             }`}
           >
             <div className="flex items-center justify-between w-full">
@@ -57,7 +57,7 @@ export const TableList: React.FC<TableListProps> = ({ tables, pendingChangesByTa
           </Link>
         ))}
         {tables.length === 0 && (
-          <p className="text-gray-500 text-sm p-3">No tables found</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm p-3">No tables found</p>
         )}
       </div>
     </div>

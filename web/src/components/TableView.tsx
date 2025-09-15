@@ -836,7 +836,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-gray-500">Loading table data...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading table data...</div>
       </div>
     );
   }
@@ -852,20 +852,20 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   if (!tableData) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-gray-500">No data available</div>
+        <div className="text-gray-500 dark:text-gray-400">No data available</div>
       </div>
     );
   }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
-      <div className="border-b border-gray-300 p-4 bg-white">
+      <div className="border-b border-gray-300 dark:border-gray-600 p-4 bg-white dark:bg-gray-800">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">{tableName}</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{tableName}</h2>
           <div className="flex gap-2">
             <button
               onClick={() => setEditModal({ isOpen: true, mode: 'insert' })}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center gap-2"
+              className="px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded hover:bg-green-700 dark:hover:bg-green-800 text-sm flex items-center gap-2"
             >
               <i className="ti ti-plus"></i>
               Add Row
@@ -882,7 +882,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   loadTableData();
                 }
               }}
-              className={`px-4 py-2 ${loading ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded text-sm flex items-center gap-2`}
+              className={`px-4 py-2 ${loading ? 'bg-gray-400 dark:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700'} text-white rounded text-sm flex items-center gap-2 transition-colors`}
               disabled={loading}
             >
               <i className={`ti ${loading ? 'ti-loader animate-spin' : 'ti-refresh'}`}></i>
@@ -918,32 +918,32 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
         </div>
       </div>
 
-      <div className="border-t border-gray-300 p-3 bg-gray-50 flex items-center justify-between text-xs">
-        <div className="text-gray-600">
+      <div className="border-t border-gray-300 dark:border-gray-600 p-3 bg-gray-50 dark:bg-gray-700 flex items-center justify-between text-xs">
+        <div className="text-gray-600 dark:text-gray-300">
           Showing {Math.min((currentPage - 1) * pageSize + 1, tableData.total)} - {Math.min(currentPage * pageSize, tableData.total)} of {tableData.total} rows
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-xs"
+            className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-xs text-gray-900 dark:text-gray-100 transition-colors"
           >
             Previous
           </button>
-          <span className="text-gray-600">
+          <span className="text-gray-600 dark:text-gray-300">
             Page {currentPage} of {Math.ceil(tableData.total / pageSize)}
           </span>
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage >= Math.ceil(tableData.total / pageSize)}
-            className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-xs"
+            className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-xs text-gray-900 dark:text-gray-100 transition-colors"
           >
             Next
           </button>
           <select
             value={pageSize}
             onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-            className="ml-3 px-2 py-1 border border-gray-300 rounded text-xs"
+            className="ml-3 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           >
             <option value={10}>10 per page</option>
             <option value={25}>25 per page</option>
@@ -954,8 +954,8 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
           </select>
           <button
             onClick={toggleFilters}
-            className={`ml-3 px-3 py-1 border border-gray-300 rounded text-xs flex items-center gap-1 ${
-              showFilters ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-gray-700 hover:bg-gray-50'
+            className={`ml-3 px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs flex items-center gap-1 ${
+              showFilters ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border-blue-300 dark:border-blue-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
             title="Toggle filters"
           >
@@ -979,7 +979,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
           )}
           <button
             onClick={handleExportCSV}
-            className="ml-3 px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded text-xs hover:bg-green-200 flex items-center gap-1"
+            className="ml-3 px-3 py-1 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 border border-green-300 dark:border-green-600 rounded text-xs hover:bg-green-200 dark:hover:bg-green-700 flex items-center gap-1"
             title="Export table data as CSV"
           >
             <i className="ti ti-download"></i>
@@ -990,10 +990,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
 
       <div className="flex-1 overflow-auto">
         <div className="min-h-0 max-h-0">
-        <table className="w-full border-collapse min-w-max">
-          <thead className="bg-gray-50 sticky top-0">
+        <table className="w-full border-collapse min-w-max bg-white dark:bg-gray-800" style={{ tableLayout: 'fixed' }}>
+          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
             <tr>
-              <th className="border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 w-12">
+              <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 w-12">
                 <div className="flex justify-center">
                   <input
                     type="checkbox"
@@ -1006,12 +1006,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               {(tableData.columns || []).map((column) => (
                 <th
                   key={column.name}
-                  className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 relative"
-                  style={{ width: getColumnWidth(column.name), minWidth: getColumnWidth(column.name) }}
+                  className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-left text-xs font-medium text-gray-700 dark:text-gray-200 relative"
+                  style={{ width: getColumnWidth(column.name), minWidth: '50px' }}
                 >
                   <div>
                     <div
-                      className="flex items-center justify-between cursor-pointer hover:bg-gray-100 -mx-2 -my-1 px-2 py-1 rounded"
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 -mx-2 -my-1 px-2 py-1 rounded transition-colors"
                       onClick={() => handleSort(column.name)}
                       title={`Sort by ${column.name}`}
                     >
@@ -1023,7 +1023,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                           {column.not_null && <span className="text-red-600 ml-1">*</span>}
                           {filters[column.name] && <span className="text-blue-600 ml-1">🔍</span>}
                         </div>
-                        <span className="text-xs text-gray-500 font-normal">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
                           {column.type}
                           {column.primary_key && ' (PK)'}
                           {column.unique && ' (UNIQUE)'}
@@ -1048,7 +1048,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   />
                 </th>
               ))}
-              <th className="border border-gray-300 px-2 py-1 text-left text-xs font-medium text-gray-700 w-24">
+              <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-left text-xs font-medium text-gray-700 w-24">
                 Actions
               </th>
             </tr>
@@ -1057,10 +1057,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             {(tableData.rows || []).map((row, index) => (
               <tr
                 key={index}
-                className={`hover:bg-gray-50 group cursor-pointer ${selectedRows.has(index) ? 'bg-blue-50' : ''}`}
+                className={`hover:bg-gray-50 dark:hover:bg-gray-700 group cursor-pointer transition-colors ${selectedRows.has(index) ? 'bg-blue-50 dark:bg-blue-900' : ''}`}
                 onClick={() => handleRowSelect(index)}
               >
-                <td className="border border-gray-300 px-2 py-1 text-center">
+                <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-center">
                   <input
                     type="checkbox"
                     checked={selectedRows.has(index)}
@@ -1078,11 +1078,11 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   return (
                     <td
                       key={column.name}
-                      className={`border border-gray-300 px-2 py-1 text-xs text-gray-900 ${hasChange ? 'bg-yellow-100' : ''}`}
-                      style={{ width: getColumnWidth(column.name), minWidth: getColumnWidth(column.name) }}
+                      className={`border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs text-gray-900 dark:text-gray-100 overflow-hidden ${hasChange ? 'bg-yellow-100 dark:bg-yellow-900/20' : ''}`}
+                      style={{ width: getColumnWidth(column.name), minWidth: '50px' }}
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <div className="flex-1">
+                        <div className="flex-1 overflow-hidden">
                           {isEditing ? (
                             getInputType(column.type) === 'checkbox' ? (
                               <input
@@ -1103,7 +1103,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                             ) : (
                               <input
                                 type={getInputType(column.type)}
-                                className="w-full h-8 px-2 py-1 text-sm border border-gray-300 rounded"
+                                className="w-full h-8 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                 defaultValue={displayValue === null ? '' : String(displayValue)}
                                 autoFocus
                                 onBlur={(e) => handleCellEdit(index, column.name, e.target.value, row[column.name])}
@@ -1119,7 +1119,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                             )
                           ) : (
                             <div
-                              className="max-w-xs overflow-hidden text-ellipsis cursor-pointer whitespace-nowrap"
+                              className="w-full overflow-hidden text-ellipsis cursor-pointer whitespace-nowrap"
                               onDoubleClick={() => handleCellDoubleClick(index, column.name, row[column.name])}
                               title={displayValue === null ? 'NULL' : String(displayValue)}
                             >
@@ -1165,7 +1165,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                     </td>
                   );
                 })}
-                <td className="border border-gray-300 px-2 py-1 text-xs">
+                <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs">
                   <div className="flex gap-1">
                     {getRowPendingChanges(index).length > 0 ? (
                       <i
@@ -1191,15 +1191,15 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 </td>
               </tr>
             ))}
-            <tr className="bg-green-50 group">
-              <td className="border border-gray-300 px-2 py-1 text-center">
-                <i className="ti ti-plus text-green-600"></i>
+            <tr className="bg-green-50 dark:bg-green-900 group">
+              <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-center">
+                <i className="ti ti-plus text-green-600 dark:text-green-400"></i>
               </td>
               {(tableData.columns || []).map((column) => (
                 <td
                   key={column.name}
-                  className="border border-gray-300 px-2 py-1 text-xs"
-                  style={{ width: getColumnWidth(column.name), minWidth: getColumnWidth(column.name) }}
+                  className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs"
+                  style={{ width: getColumnWidth(column.name), minWidth: '50px' }}
                 >
                   <div className="flex items-center gap-1">
                     {getInputType(column.type) === 'checkbox' ? (
@@ -1215,7 +1215,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                         type={getInputType(column.type)}
                         value={newRowData[column.name] || ''}
                         onChange={(e) => handleNewRowChange(column.name, e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         placeholder={column.primary_key ? 'Auto' : (column.not_null ? 'Required' : 'Optional')}
                         disabled={column.primary_key && column.name === 'id'}
                         required={column.not_null && !column.primary_key}
@@ -1234,14 +1234,14 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   </div>
                 </td>
               ))}
-              <td className="border border-gray-300 px-2 py-1 text-xs">
+              <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs">
                 <button
                   onClick={handleAddNewRow}
                   disabled={!isNewRowValid()}
                   className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
                     isNewRowValid()
-                      ? 'bg-green-500 text-white hover:bg-green-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? 'bg-green-600 dark:bg-green-700 text-white hover:bg-green-700 dark:hover:bg-green-800'
+                      : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                   }`}
                   title="Add new row"
                 >
@@ -1254,7 +1254,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               <tr>
                 <td
                   colSpan={(tableData.columns || []).length + 2}
-                  className="border border-gray-300 px-2 py-4 text-center text-gray-500 text-xs"
+                  className="border border-gray-300 dark:border-gray-600 px-2 py-4 text-center text-gray-500 dark:text-gray-400 text-xs"
                 >
                   No data in this table
                 </td>

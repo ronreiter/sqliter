@@ -139,12 +139,12 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
   const needsValueInput = filter && !['null', 'not_null', 'true', 'false'].includes(filter.operator);
 
   return (
-    <div className="p-2 bg-gray-50 border-t border-gray-200 space-y-2">
+    <div className="p-2 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 space-y-2">
       <div className="flex items-center gap-2">
         <select
           value={filter?.operator ?? ''}
           onChange={(e) => e.target.value ? handleOperatorChange(e.target.value) : handleClear()}
-          className="text-xs border border-gray-300 rounded px-2 py-1 min-w-0 flex-1"
+          className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 min-w-0 flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
         >
           <option value="">No filter</option>
           {operatorOptions.map(option => (
@@ -170,7 +170,7 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
             <select
               value={filter.value === true ? 'true' : filter.value === false ? 'false' : ''}
               onChange={(e) => handleValueChange(e.target.value === 'true')}
-              className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="">Select value</option>
               <option value="true">True</option>
@@ -181,7 +181,7 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
               type="number"
               value={localValue}
               onChange={(e) => handleValueChange(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               placeholder="Enter number"
             />
           ) : filterType === 'date' ? (
@@ -190,14 +190,14 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
                     column.type.toLowerCase().includes('time') ? 'time' : 'date'}
               value={localValue || ''}
               onChange={(e) => handleValueChange(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             />
           ) : (
             <input
               type="text"
               value={localValue || ''}
               onChange={(e) => handleValueChange(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+              className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               placeholder="Enter text"
             />
           )}

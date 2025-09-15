@@ -90,15 +90,15 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, c
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-[600px] max-h-[600px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-[600px] max-h-[600px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{title}</h3>
         <form onSubmit={handleSubmit}>
           {columns.map((column) => (
             <div key={column.name} className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {column.name}
                 {column.not_null && <span className="text-red-500">*</span>}
-                <span className="text-xs text-gray-500 ml-1">({column.type})</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({column.type})</span>
               </label>
 {getInputType(column.type) === 'checkbox' ? (
                 <input
@@ -117,7 +117,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, c
                       : formData[column.name] || ''
                   }
                   onChange={(e) => setFormData({ ...formData, [column.name]: e.target.value })}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   required={column.not_null}
                   disabled={column.primary_key && !!initialData}
                 />
@@ -128,13 +128,13 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, c
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+              className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="px-4 py-2 text-sm bg-blue-500 dark:bg-blue-600 text-white rounded hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
             >
               Save
             </button>
