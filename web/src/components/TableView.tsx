@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TableData, Column, FilterState, ColumnFilter } from '../types';
+import { TableData, FilterState, ColumnFilter } from '../types';
 import { api } from '../api';
 import { EditModal } from './EditModal';
 import { ErrorDialog } from './ErrorDialog';
@@ -240,6 +240,9 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
 
+  // Text wrapping state
+  const [wrapText, setWrapText] = useState(false);
+
   // Column resize state
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     // Load column widths from session storage for this table
@@ -326,6 +329,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             conditions.push(`${columnName} LIKE '%${safeValue}%'`);
           }
           break;
+        case 'icontains':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            const safeValue = String(filter.value).replace(/'/g, "''");
+            conditions.push(`LOWER(${columnName}) LIKE LOWER('%${safeValue}%')`);
+          }
+          break;
         case 'equals':
           if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
             if (typeof filter.value === 'string') {
@@ -333,6 +342,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             } else {
               conditions.push(`${columnName} = ${filter.value}`);
             }
+          }
+          break;
+        case 'iequals':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            const safeValue = String(filter.value).replace(/'/g, "''");
+            conditions.push(`LOWER(${columnName}) = LOWER('${safeValue}')`);
           }
           break;
         case 'greater':
@@ -352,10 +367,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
           conditions.push(`${columnName} IS NOT NULL`);
           break;
         case 'true':
-          conditions.push(`${columnName} = 1 OR ${columnName} = 'true' OR ${columnName} = 'True'`);
+          conditions.push(`${columnName} = 1`);
           break;
         case 'false':
-          conditions.push(`${columnName} = 0 OR ${columnName} = 'false' OR ${columnName} = 'False' OR ${columnName} IS NULL`);
+          conditions.push(`${columnName} = 0`);
           break;
       }
     });
@@ -1147,6 +1162,18 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             <i className="ti ti-download"></i>
             Export CSV
           </button>
+          <button
+            onClick={() => setWrapText(!wrapText)}
+            className={`ml-3 px-3 py-1 border rounded text-xs flex items-center gap-1 ${
+              wrapText
+                ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border-blue-300 dark:border-blue-600'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+            title="Toggle text wrapping in table cells"
+          >
+            <i className="ti ti-text-wrap"></i>
+            Wrap Text
+          </button>
         </div>
       </div>
 
@@ -1253,7 +1280,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                 autoFocus
                                 onChange={(e) => handleCellEdit(index, column.name, e.target.checked ? 'true' : 'false', row[column.name])}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
+                                  if (e.key === 'Enter') {
                                     e.preventDefault();
                                     const newValue = !getBooleanValue(displayValue);
                                     handleCellEdit(index, column.name, newValue ? 'true' : 'false', row[column.name]);
@@ -1286,7 +1313,11 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                             )
                           ) : (
                             <div
-                              className="w-full overflow-hidden text-ellipsis cursor-pointer whitespace-nowrap"
+                              className={`w-full overflow-hidden cursor-pointer ${
+                                wrapText
+                                  ? 'whitespace-pre-wrap break-words'
+                                  : 'text-ellipsis whitespace-nowrap'
+                              }`}
                               onDoubleClick={isBlobColumn(column.type) ? undefined : () => handleCellDoubleClick(index, column.name, row[column.name])}
                               title={displayValue === null ? 'NULL' : String(displayValue)}
                             >

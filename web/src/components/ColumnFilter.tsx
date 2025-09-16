@@ -8,16 +8,26 @@ interface ColumnFilterProps {
 }
 
 const getFilterType = (columnType: string): 'text' | 'number' | 'boolean' | 'date' => {
-  const type = columnType.toLowerCase();
-  if (type.includes('bool') || type.includes('boolean')) {
+  const type = columnType.toLowerCase().trim();
+
+  // Be more specific with boolean detection
+  if (type === 'bool' || type === 'boolean') {
     return 'boolean';
   }
-  if (type.includes('int') || type.includes('real') || type.includes('numeric') || type.includes('decimal')) {
+
+  // Be more specific with number detection - check for exact matches and common SQL types
+  if (type === 'int' || type === 'integer' || type === 'real' || type === 'float' ||
+      type === 'double' || type === 'numeric' || type === 'decimal' ||
+      type.startsWith('int(') || type.startsWith('decimal(') || type.startsWith('numeric(')) {
     return 'number';
   }
-  if (type.includes('date') || type.includes('time')) {
+
+  // Date/time detection
+  if (type.includes('date') || type.includes('time') || type === 'timestamp') {
     return 'date';
   }
+
+  // Default to text for everything else including varchar, char, text, etc.
   return 'text';
 };
 
@@ -26,7 +36,9 @@ const getOperatorOptions = (filterType: 'text' | 'number' | 'boolean' | 'date') 
     case 'text':
       return [
         { value: 'contains', label: 'Contains' },
+        { value: 'icontains', label: 'Contains (case-insensitive)' },
         { value: 'equals', label: 'Equals' },
+        { value: 'iequals', label: 'Equals (case-insensitive)' },
         { value: 'null', label: 'Is NULL' },
         { value: 'not_null', label: 'Is not NULL' }
       ];
@@ -52,22 +64,24 @@ const getOperatorOptions = (filterType: 'text' | 'number' | 'boolean' | 'date') 
 export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, filter, onChange }) => {
   const filterType = getFilterType(column.type);
   const operatorOptions = getOperatorOptions(filterType);
-  const [localValue, setLocalValue] = useState<string>('');
+  const [inputValue, setInputValue] = useState<string>('');
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  // Initialize local value from filter
+  // Initialize input value from filter
   useEffect(() => {
     if (filter?.value !== undefined && filter?.value !== null) {
-      setLocalValue(String(filter.value));
+      setInputValue(String(filter.value));
     } else {
-      setLocalValue('');
+      setInputValue('');
     }
   }, [filter?.value]);
 
-  // Safety check for filter object
-  if (!filter && localValue !== '') {
-    setLocalValue('');
-  }
+  // Clear input when filter is removed
+  useEffect(() => {
+    if (!filter) {
+      setInputValue('');
+    }
+  }, [filter]);
 
   const handleOperatorChange = (operator: string) => {
     if (operator === 'null' || operator === 'not_null') {
@@ -92,39 +106,57 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
         operator: operator as any,
         value: initialValue
       });
-      setLocalValue(String(initialValue));
+      setInputValue(String(initialValue));
     }
   };
 
-  const handleValueChange = (value: string | number | boolean) => {
+  const handleInputChange = (value: string) => {
     if (!filter) return;
 
-    if (typeof value === 'string') {
-      setLocalValue(value);
+    // Update input state immediately
+    setInputValue(value);
 
-      // Clear existing timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+    // Clear existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Debounce the actual filter change
+    timeoutRef.current = setTimeout(() => {
+      let finalValue: string | number | boolean | null = value;
+      if (filterType === 'number') {
+        if (value === '') {
+          finalValue = 0;
+        } else {
+          const numValue = Number(value);
+          // Only update if it's a valid number, otherwise keep the string for partial input
+          if (!isNaN(numValue) && isFinite(numValue)) {
+            finalValue = numValue;
+          } else {
+            // Don't update filter for invalid number input, let user continue typing
+            return;
+          }
+        }
       }
-
-      // Debounce the onChange call
-      timeoutRef.current = setTimeout(() => {
-        onChange({
-          ...filter,
-          value: filterType === 'number' ? (value === '' ? 0 : Number(value)) : value
-        });
-      }, 300); // 300ms debounce
-    } else {
       onChange({
         ...filter,
-        value
+        value: finalValue
       });
-    }
+    }, 500);
+  };
+
+  const handleNonStringValueChange = (value: number | boolean) => {
+    if (!filter) return;
+
+    onChange({
+      ...filter,
+      value
+    });
   };
 
   const handleClear = () => {
     onChange(null);
-    setLocalValue('');
+    setInputValue('');
   };
 
   // Cleanup timeout on unmount
@@ -169,7 +201,7 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
           {filterType === 'boolean' ? (
             <select
               value={filter.value === true ? 'true' : filter.value === false ? 'false' : ''}
-              onChange={(e) => handleValueChange(e.target.value === 'true')}
+              onChange={(e) => handleNonStringValueChange(e.target.value === 'true')}
               className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="">Select value</option>
@@ -179,8 +211,8 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
           ) : filterType === 'number' ? (
             <input
               type="number"
-              value={localValue}
-              onChange={(e) => handleValueChange(e.target.value)}
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
               className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               placeholder="Enter number"
             />
@@ -188,15 +220,15 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
             <input
               type={column.type.toLowerCase().includes('datetime') || column.type.toLowerCase().includes('timestamp') ? 'datetime-local' :
                     column.type.toLowerCase().includes('time') ? 'time' : 'date'}
-              value={localValue || ''}
-              onChange={(e) => handleValueChange(e.target.value)}
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
               className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             />
           ) : (
             <input
               type="text"
-              value={localValue || ''}
-              onChange={(e) => handleValueChange(e.target.value)}
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
               className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               placeholder="Enter text"
             />

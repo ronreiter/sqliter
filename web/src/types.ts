@@ -43,7 +43,7 @@ export interface DatabaseInfo {
 export interface ColumnFilter {
   columnName: string;
   filterType: 'text' | 'number' | 'boolean' | 'date';
-  operator: 'contains' | 'equals' | 'greater' | 'less' | 'null' | 'not_null' | 'true' | 'false';
+  operator: 'contains' | 'icontains' | 'equals' | 'iequals' | 'greater' | 'less' | 'null' | 'not_null' | 'true' | 'false';
   value: string | number | boolean | null;
 }
 

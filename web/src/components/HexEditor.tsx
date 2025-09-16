@@ -166,11 +166,21 @@ export const HexEditorModal: React.FC<HexEditorProps> = ({
     }
   };
 
-  // Add global keypress handler
+  // Add keypress handler only when modal is open and focused
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [data, selectedByte, pendingInput]);
+    if (!isOpen) return;
+
+    const modalContent = contentRef.current;
+    if (!modalContent) return;
+
+    modalContent.addEventListener('keydown', handleKeyPress);
+    // Focus the content area when modal opens so it can receive keyboard events
+    modalContent.focus();
+
+    return () => {
+      modalContent.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isOpen, data, selectedByte, pendingInput]);
 
 
   const handleAddByte = () => {
@@ -207,7 +217,8 @@ export const HexEditorModal: React.FC<HexEditorProps> = ({
         <div className="flex-1 p-4 overflow-auto">
           <div
             ref={contentRef}
-            className="font-mono text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-4 h-full overflow-auto"
+            className="font-mono text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded p-4 h-full overflow-auto outline-none"
+            tabIndex={0}
           >
             {/* Header */}
             <div className="flex mb-3 text-gray-600 dark:text-gray-400 border-b border-gray-300 dark:border-gray-600 pb-3 font-bold">
