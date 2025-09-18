@@ -74,6 +74,11 @@ const getInputType = (columnType: string): string => {
   return 'text';
 };
 
+const isTextColumn = (columnType: string): boolean => {
+  const type = columnType.toLowerCase();
+  return type.includes('text') || type.includes('char') || type.includes('varchar') || type.includes('string') || getInputType(columnType) === 'text';
+};
+
 const getDateValue = (value: any, inputType: string): string => {
   if (!value || value === null || value === undefined) return '';
 
@@ -240,8 +245,10 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
 
-  // Text wrapping state
-  const [wrapText, setWrapText] = useState(false);
+  // Text wrapping state (initialized from URL)
+  const [wrapText, setWrapText] = useState(() => {
+    return searchParams.get('wrap') === 'true';
+  });
 
   // Column resize state
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
@@ -451,6 +458,12 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       }
     }
 
+    // Load wrap text from URL
+    const urlWrap = searchParams.get('wrap');
+    if (urlWrap !== null) {
+      setWrapText(urlWrap === 'true');
+    }
+
     // Load filters from URL
     const urlFilters: FilterState = {};
     for (const [key, value] of searchParams.entries()) {
@@ -509,8 +522,13 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       params.set(`filter_${columnName}`, encodeURIComponent(JSON.stringify(filterData)));
     });
 
+    // Add wrap text to URL
+    if (wrapText) {
+      params.set('wrap', 'true');
+    }
+
     setSearchParams(params, { replace: true });
-  }, [sortColumn, sortDirection, pageSize, currentPage, filters, setSearchParams]);
+  }, [sortColumn, sortDirection, pageSize, currentPage, filters, wrapText, setSearchParams]);
 
   const handleInsert = async (data: Record<string, any>) => {
     try {
@@ -1169,7 +1187,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                 ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border-blue-300 dark:border-blue-600'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
-            title="Toggle text wrapping in table cells"
+            title="Toggle text wrapping in table cells and use textarea for editing text columns"
           >
             <i className="ti ti-text-wrap"></i>
             Wrap Text
@@ -1287,6 +1305,25 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                                   } else if (e.key === 'Escape') {
                                     setEditingCell(null);
                                   }
+                                }}
+                              />
+                            ) : wrapText && isTextColumn(column.type) ? (
+                              <textarea
+                                className="w-full min-h-40 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 resize-none"
+                                defaultValue={displayValue === null ? '' : String(displayValue)}
+                                autoFocus
+                                onBlur={(e) => handleCellEdit(index, column.name, e.target.value, row[column.name])}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                    e.preventDefault();
+                                    handleCellEdit(index, column.name, e.currentTarget.value, row[column.name]);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                                style={{
+                                  whiteSpace: 'pre-wrap',
+                                  wordWrap: 'break-word'
                                 }}
                               />
                             ) : (
@@ -1451,6 +1488,19 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                         placeholder="Click to edit binary data"
                         className="flex-1 w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 cursor-pointer"
                         disabled={column.primary_key && column.name === 'id'}
+                      />
+                    ) : wrapText && isTextColumn(column.type) ? (
+                      <textarea
+                        value={newRowData[column.name] || ''}
+                        onChange={(e) => handleNewRowChange(column.name, e.target.value)}
+                        className="flex-1 w-full min-h-40 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 resize-none"
+                        placeholder={column.primary_key ? 'Auto' : (column.not_null ? 'Required' : 'Optional')}
+                        disabled={column.primary_key && column.name === 'id'}
+                        required={column.not_null && !column.primary_key}
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          wordWrap: 'break-word'
+                        }}
                       />
                     ) : (
                       <input

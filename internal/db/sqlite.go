@@ -392,79 +392,96 @@ func (s *SQLiteDB) ExecuteSQL(sqlQuery string) (*models.SQLQueryResult, error) {
 		return nil, fmt.Errorf("empty SQL query")
 	}
 
-	// Check if this is a SELECT query or other type
-	isSelect := strings.HasPrefix(strings.ToUpper(sqlQuery), "SELECT")
-
-	if isSelect {
-		return s.executeSelectQuery(sqlQuery)
-	} else {
-		return s.executeNonSelectQuery(sqlQuery)
+	// Detect if this is likely a data-returning query by checking the first word
+	normalizedQuery := strings.ToUpper(strings.TrimSpace(sqlQuery))
+	// Remove leading comments
+	for strings.HasPrefix(normalizedQuery, "--") {
+		if idx := strings.Index(normalizedQuery, "\n"); idx != -1 {
+			normalizedQuery = strings.TrimSpace(normalizedQuery[idx+1:])
+		} else {
+			break
+		}
 	}
-}
-
-func (s *SQLiteDB) executeSelectQuery(sqlQuery string) (*models.SQLQueryResult, error) {
-	rows, err := s.db.Query(sqlQuery)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
-	}
-	defer rows.Close()
-
-	// Get column names
-	columnNames, err := rows.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get column names: %w", err)
+	for strings.HasPrefix(normalizedQuery, "/*") {
+		if idx := strings.Index(normalizedQuery, "*/"); idx != -1 {
+			normalizedQuery = strings.TrimSpace(normalizedQuery[idx+2:])
+		} else {
+			break
+		}
 	}
 
-	var resultRows [][]interface{}
-	for rows.Next() {
-		values := make([]interface{}, len(columnNames))
-		valuePtrs := make([]interface{}, len(columnNames))
-		for i := range values {
-			valuePtrs[i] = &values[i]
+	// Check if this is likely a SELECT-type query
+	isSelectQuery := strings.HasPrefix(normalizedQuery, "SELECT") ||
+		strings.HasPrefix(normalizedQuery, "WITH") ||
+		strings.HasPrefix(normalizedQuery, "EXPLAIN") ||
+		(strings.HasPrefix(normalizedQuery, "PRAGMA") &&
+		 (strings.Contains(normalizedQuery, "TABLE_INFO") ||
+		  strings.Contains(normalizedQuery, "INDEX_LIST") ||
+		  strings.Contains(normalizedQuery, "INDEX_INFO")))
+
+	if isSelectQuery {
+		// Execute as SELECT query
+		rows, err := s.db.Query(sqlQuery)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute query: %w", err)
+		}
+		defer rows.Close()
+
+		columnNames, err := rows.Columns()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get column names: %w", err)
 		}
 
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		row := make([]interface{}, len(columnNames))
-		for i, val := range values {
-			if val != nil {
-				switch v := val.(type) {
-				case []byte:
-					row[i] = string(v)
-				default:
-					row[i] = v
-				}
-			} else {
-				row[i] = nil
+		var resultRows [][]interface{}
+		for rows.Next() {
+			values := make([]interface{}, len(columnNames))
+			valuePtrs := make([]interface{}, len(columnNames))
+			for i := range values {
+				valuePtrs[i] = &values[i]
 			}
+
+			if err := rows.Scan(valuePtrs...); err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+
+			row := make([]interface{}, len(columnNames))
+			for i, val := range values {
+				if val != nil {
+					switch v := val.(type) {
+					case []byte:
+						row[i] = string(v)
+					default:
+						row[i] = v
+					}
+				} else {
+					row[i] = nil
+				}
+			}
+			resultRows = append(resultRows, row)
 		}
-		resultRows = append(resultRows, row)
-	}
 
-	return &models.SQLQueryResult{
-		Columns:  columnNames,
-		Rows:     resultRows,
-		RowCount: len(resultRows),
-	}, nil
+		return &models.SQLQueryResult{
+			Columns:  columnNames,
+			Rows:     resultRows,
+			RowCount: len(resultRows),
+		}, nil
+	} else {
+		// Execute as non-SELECT query (INSERT, UPDATE, DELETE, etc.)
+		result, err := s.db.Exec(sqlQuery)
+		if err != nil {
+			return nil, s.parseConstraintError(err)
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		return &models.SQLQueryResult{
+			Columns:      []string{"rows_affected"},
+			Rows:         [][]interface{}{{rowsAffected}},
+			RowCount:     1,
+			RowsAffected: int(rowsAffected),
+		}, nil
+	}
 }
 
-func (s *SQLiteDB) executeNonSelectQuery(sqlQuery string) (*models.SQLQueryResult, error) {
-	result, err := s.db.Exec(sqlQuery)
-	if err != nil {
-		return nil, s.parseConstraintError(err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-
-	return &models.SQLQueryResult{
-		Columns:      []string{"rows_affected"},
-		Rows:         [][]interface{}{{rowsAffected}},
-		RowCount:     1,
-		RowsAffected: int(rowsAffected),
-	}, nil
-}
 
 func (s *SQLiteDB) ExportTableCSV(tableName, sortColumn, sortDirection, whereClause string, writer *csv.Writer) error {
 	columns, err := s.GetTableSchema(tableName)
