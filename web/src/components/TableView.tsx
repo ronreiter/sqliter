@@ -314,6 +314,78 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     }
   }, [columnWidths, tableName]);
 
+  const formatFilterContext = (): string => {
+    if (!filters || Object.keys(filters).length === 0) {
+      return '';
+    }
+
+    const filterDescriptions: string[] = [];
+
+    Object.values(filters).forEach(filter => {
+      if (!filter || !filter.columnName || typeof filter !== 'object') {
+        return; // Skip invalid filters
+      }
+
+      const columnName = filter.columnName;
+      let description = '';
+
+      switch (filter.operator) {
+        case 'contains':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            description = `${columnName} contains '${filter.value}'`;
+          }
+          break;
+        case 'icontains':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            description = `${columnName} contains '${filter.value}' (case insensitive)`;
+          }
+          break;
+        case 'equals':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            if (typeof filter.value === 'string') {
+              description = `${columnName} = '${filter.value}'`;
+            } else {
+              description = `${columnName} = ${filter.value}`;
+            }
+          }
+          break;
+        case 'iequals':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            description = `${columnName} = '${filter.value}' (case insensitive)`;
+          }
+          break;
+        case 'greater':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            description = `${columnName} > ${filter.value}`;
+          }
+          break;
+        case 'less':
+          if (filter.value !== null && filter.value !== undefined && filter.value !== '') {
+            description = `${columnName} < ${filter.value}`;
+          }
+          break;
+        case 'null':
+          description = `${columnName} is NULL`;
+          break;
+        case 'not_null':
+          description = `${columnName} is not NULL`;
+          break;
+        case 'true':
+          description = `${columnName} is true`;
+          break;
+        case 'false':
+          description = `${columnName} is false`;
+          break;
+      }
+
+      if (description) {
+        filterDescriptions.push(description);
+      }
+    });
+
+    return filterDescriptions.length > 0 ? `, filtered by ${filterDescriptions.join(', ')}` : '';
+  };
+
   const buildFilterQuery = (): string[] => {
     const conditions: string[] = [];
 
@@ -1115,7 +1187,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
 
       <div className="border-t border-gray-300 dark:border-gray-600 p-3 bg-gray-50 dark:bg-gray-700 flex items-center justify-between text-xs">
         <div className="text-gray-600 dark:text-gray-300">
-          Showing {Math.min((currentPage - 1) * pageSize + 1, tableData.total)} - {Math.min(currentPage * pageSize, tableData.total)} of {tableData.total} rows
+          Showing {Math.min((currentPage - 1) * pageSize + 1, tableData.total)} - {Math.min(currentPage * pageSize, tableData.total)} of {tableData.total} rows{formatFilterContext()}
         </div>
         <div className="flex items-center gap-2">
           <button
