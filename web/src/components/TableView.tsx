@@ -1066,9 +1066,44 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     }
   }, [isResizing]);
 
+  // Helper function to calculate auto width for text columns based on content
+  const calculateAutoWidth = (columnName: string, columnType: string): number => {
+    if (!isTextColumn(columnType) || !tableData?.rows) return 200;
+
+    // Find the longest text in this column (including pending changes)
+    let maxLength = 0;
+    tableData.rows.forEach((row, index) => {
+      const changeKey = `${index}-${columnName}`;
+      const value = changeKey in pendingChanges ? pendingChanges[changeKey].newValue : row[columnName];
+      if (value && typeof value === 'string') {
+        maxLength = Math.max(maxLength, value.length);
+      }
+    });
+
+    // Also check new row data if it exists
+    if (newRowData[columnName] && typeof newRowData[columnName] === 'string') {
+      maxLength = Math.max(maxLength, newRowData[columnName].length);
+    }
+
+    // Calculate width: each character = 5px, min 200px, max 600px
+    const calculatedWidth = Math.max(200, Math.min(600, maxLength * 5));
+    return calculatedWidth;
+  };
+
   // Get column width
   const getColumnWidth = (columnName: string) => {
-    return columnWidths[columnName] || 200; // Default width
+    // If user has manually resized this column, use that width
+    if (columnWidths[columnName]) {
+      return columnWidths[columnName];
+    }
+
+    // For text columns, calculate auto width based on content
+    const column = tableData?.columns.find(col => col.name === columnName);
+    if (column && isTextColumn(column.type)) {
+      return calculateAutoWidth(columnName, column.type);
+    }
+
+    return 200; // Default width for non-text columns
   };
 
   // CSV export handler
