@@ -196,6 +196,7 @@ export const ColumnFilterComponent: React.FC<ColumnFilterProps> = ({ column, fil
         )}
       </div>
 
+
       {needsValueInput && filter && (
         <div>
           {filterType === 'boolean' ? (

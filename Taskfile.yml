@@ -4,8 +4,8 @@ tasks:
   build:
     desc: Build the complete SQLiter application (frontend and backend)
     cmds:
-      - task: build:frontend
       - task: build:backend
+
 
   build:frontend:
     desc: Build the React frontend
@@ -16,17 +16,26 @@ tasks:
       - src/**/*
       - package.json
       - package-lock.json
+      - index.html
+      - vite.config.ts
+      - tailwind.config.js
+      - tsconfig.json
+      - tsconfig.node.json
+      - postcss.config.js
     generates:
       - dist/**/*
 
+
   build:backend:
     desc: Build the Go backend
+    deps: [build:frontend]
     cmds:
       - go build -o sqliter .
     sources:
       - "**/*.go"
       - go.mod
       - go.sum
+      - web/dist/**/*
     generates:
       - sqliter
 

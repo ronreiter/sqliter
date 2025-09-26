@@ -210,6 +210,7 @@ const renderTextWithUrls = (text: string): JSX.Element => {
 
 export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPendingChangesUpdate }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [tableData, setTableData] = useState<TableData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -257,6 +258,13 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     return saved ? JSON.parse(saved) : {};
   });
   const [isResizing, setIsResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
+
+  // Hidden columns state
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => {
+    // Load hidden columns from session storage for this table
+    const saved = sessionStorage.getItem(`hiddenColumns_${tableName}`);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<ErrorDialog>({
@@ -313,6 +321,24 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
       sessionStorage.setItem(`columnWidths_${tableName}`, JSON.stringify(columnWidths));
     }
   }, [columnWidths, tableName]);
+
+  // Save hidden columns to session storage whenever they change
+  useEffect(() => {
+    sessionStorage.setItem(`hiddenColumns_${tableName}`, JSON.stringify(Array.from(hiddenColumns)));
+  }, [hiddenColumns, tableName]);
+
+  // Close column selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showColumnSelector && !target.closest('.column-selector')) {
+        setShowColumnSelector(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColumnSelector]);
 
   const formatFilterContext = (): string => {
     if (!filters || Object.keys(filters).length === 0) {
@@ -1000,6 +1026,19 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
     setShowFilters(!showFilters);
   };
 
+  // Hidden column handler
+  const handleColumnVisibilityChange = (columnName: string, isVisible: boolean) => {
+    setHiddenColumns(prev => {
+      const newSet = new Set(prev);
+      if (isVisible) {
+        newSet.delete(columnName);
+      } else {
+        newSet.add(columnName);
+      }
+      return newSet;
+    });
+  };
+
   // Sorting handler
   const handleSort = (columnName: string) => {
     if (sortColumn === columnName) {
@@ -1299,6 +1338,65 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             <i className="ti ti-text-wrap"></i>
             Wrap Text
           </button>
+          <div className="relative ml-3 column-selector">
+            <button
+              onClick={() => setShowColumnSelector(!showColumnSelector)}
+              className={`px-3 py-1 border rounded text-xs flex items-center gap-1 ${
+                showColumnSelector
+                  ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border-blue-300 dark:border-blue-600'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+              title="Show/hide columns"
+            >
+              <i className="ti ti-columns"></i>
+              Columns
+              {hiddenColumns.size > 0 && (
+                <span className="bg-orange-500 text-white rounded-full text-xs px-1 min-w-[16px] h-4 flex items-center justify-center">
+                  {(tableData?.columns?.length || 0) - hiddenColumns.size}/{tableData?.columns?.length || 0}
+                </span>
+              )}
+            </button>
+            {showColumnSelector && tableData && (
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg z-50 min-w-48 max-h-64 overflow-y-auto">
+                <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+                  <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Column Visibility</div>
+                </div>
+                <div className="p-1">
+                  {tableData.columns.map((column) => (
+                    <label
+                      key={column.name}
+                      className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-xs rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!hiddenColumns.has(column.name)}
+                        onChange={(e) => handleColumnVisibilityChange(column.name, e.target.checked)}
+                        className="rounded"
+                      />
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-900 dark:text-gray-100">{column.name}</span>
+                        <span className="text-gray-500 dark:text-gray-400">({column.type})</span>
+                        {column.primary_key && <span className="text-yellow-600">🔑</span>}
+                        {column.unique && !column.primary_key && <span className="text-purple-600">🔒</span>}
+                        {column.not_null && <span className="text-red-600">*</span>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="p-2 border-t border-gray-200 dark:border-gray-600">
+                  <button
+                    onClick={() => {
+                      // Show all columns
+                      setHiddenColumns(new Set());
+                    }}
+                    className="w-full text-xs bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-600 rounded px-2 py-1 hover:bg-blue-200 dark:hover:bg-blue-700"
+                  >
+                    Show All
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1317,7 +1415,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                   />
                 </div>
               </th>
-              {(tableData.columns || []).map((column) => (
+              {(tableData.columns || []).filter(column => !hiddenColumns.has(column.name)).map((column) => (
                 <th
                   key={column.name}
                   className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-left text-xs font-medium text-gray-700 dark:text-gray-200 relative"
@@ -1383,7 +1481,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
                     className="rounded"
                   />
                 </td>
-                {(tableData.columns || []).map((column) => {
+                {(tableData.columns || []).filter(column => !hiddenColumns.has(column.name)).map((column) => {
                   const changeKey = `${index}-${column.name}`;
                   const hasChange = changeKey in pendingChanges;
                   const isEditing = editingCell?.rowIndex === index && editingCell?.columnName === column.name;
@@ -1564,7 +1662,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
               <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-center">
                 <i className="ti ti-plus text-green-600 dark:text-green-400"></i>
               </td>
-              {(tableData.columns || []).map((column) => (
+              {(tableData.columns || []).filter(column => !hiddenColumns.has(column.name)).map((column) => (
                 <td
                   key={column.name}
                   className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs"
@@ -1652,7 +1750,7 @@ export const TableView: React.FC<TableViewProps> = ({ tableName, onRefresh, onPe
             {(!tableData.rows || tableData.rows.length === 0) && (
               <tr>
                 <td
-                  colSpan={(tableData.columns || []).length + 2}
+                  colSpan={(tableData.columns || []).filter(column => !hiddenColumns.has(column.name)).length + 2}
                   className="border border-gray-300 dark:border-gray-600 px-2 py-4 text-center text-gray-500 dark:text-gray-400 text-xs"
                 >
                   No data in this table
